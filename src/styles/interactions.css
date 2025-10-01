@@ -1,0 +1,35 @@
+.card{
+  transition: transform var(--motion-duration-medium) var(--ease-medium),
+              box-shadow var(--motion-duration-medium);
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce){
+  .card{ transition: none; }
+}
+
+.ripple-container{ position: relative; overflow: hidden; }
+.ripple{
+  position: absolute;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translate3d(-50%,-50%,0);
+  pointer-events: none;
+  opacity: 0.2;
+}
+
+.tooltip{
+  position: fixed;
+  pointer-events: none;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font: 500 12px/1.4 system-ui, sans-serif;
+  z-index: 10000;
+  transform: translate3d(0,0,0);
+  opacity: 0;
+  transition: opacity var(--motion-duration-micro) var(--ease-micro);
+}
+.tooltip.is-visible{ opacity: 1; }
+
+

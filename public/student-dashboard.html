@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Dashboard - Student Retention System</title>
+  <link rel="stylesheet" href="../src/styles/variables.css" />
+  <link rel="stylesheet" href="../src/styles/cursor.css" />
+  <link rel="stylesheet" href="../src/styles/interactions.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: start;
+      justify-content: center;
+      padding: 24px;
+      color: #2a2a2a;
+    }
+    .dashboard {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+      width: 100%;
+      max-width: 1100px;
+    }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .title {
+      display: flex; gap: 12px; align-items: center;
+    }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; display: grid; place-items: center; font-weight: 700;
+      box-shadow: 0 6px 16px rgba(118,75,162,0.35);
+    }
+    .header h1 { font-size: 22px; color: #333; }
+    .header .meta { color: #666; font-size: 13px; margin-top: 2px; }
+    .signout { color: #667eea; text-decoration: none; font-weight: 600; padding: 10px 14px; border-radius: 10px; background: rgba(102,126,234,.08); }
+    .signout:hover { background: rgba(102,126,234,.15); }
+
+    .grid {
+      display: grid; grid-template-columns: 2fr 1fr; gap: 20px;
+    }
+    .card { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
+    .card h2 { font-size: 18px; margin-bottom: 12px; color: #333; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(120px,1fr)); gap: 12px; }
+    .metric { background: linear-gradient(135deg,#f7f9ff,#fff); border: 1px solid #e8ecf2; border-radius: 12px; padding: 14px; }
+    .metric .label { color: #667; font-size: 12px; }
+    .metric .value { font-size: 22px; font-weight: 700; margin-top: 6px; background: linear-gradient(135deg,#667eea,#764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+    .list { display: grid; gap: 10px; }
+    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #eef1f6; border-radius: 10px; background: #fafbff; }
+    .chip { padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #4f46e5; }
+
+    .form { display: grid; gap: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { font-size: 13px; color: #444; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 12px; background: #fff; font-size: 14px; }
+    textarea { min-height: 110px; resize: vertical; }
+    .actions { display: flex; justify-content: end; gap: 10px; }
+    .btn { border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 700; cursor: pointer; }
+    .btn.primary { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; box-shadow: 0 8px 20px rgba(102,126,234,.3); }
+    .btn.secondary { background: #eef2ff; color: #4f46e5; }
+
+    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2,1fr); } }
+  </style>
+  <script type="module" src="../src/index.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const studentId = localStorage.getItem('studentId') || '';
+      let fullName = localStorage.getItem('fullName') || '';
+
+      // If fullName not cached, fetch profile from backend
+      if (!fullName && studentId){
+        try {
+          const res = await fetch(`http://localhost:4000/api/entries?type=student-profile&studentId=${encodeURIComponent(studentId)}&limit=1`);
+          if (res.ok){
+            const items = await res.json();
+            const profile = items && items[0];
+            if (profile && profile.data){
+              fullName = profile.data.fullName || '';
+              localStorage.setItem('fullName', fullName);
+              if (profile.data.email) localStorage.setItem('email', profile.data.email);
+              if (profile.data.major) localStorage.setItem('major', profile.data.major);
+            }
+          }
+        } catch(e) {}
+      }
+
+      const initials = (fullName || studentId || 'S').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+      const displayName = fullName || initials || ('Student ' + studentId);
+      document.getElementById('welcome').textContent = `Welcome, Student : ${displayName}`;
+      document.getElementById('student-id-line').textContent = studentId ? `ID: ${studentId}` : '';
+      document.getElementById('avatar').textContent = initials || 'S';
+    });
+
+    async function submitHelpRequest(e){
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        type: 'help-request',
+        data: {
+          category: form.category.value,
+          subject: form.subject.value,
+          details: form.details.value,
+          urgency: form.urgency.value,
+          studentId: localStorage.getItem('studentId') || null,
+          fullName: localStorage.getItem('fullName') || null,
+          email: localStorage.getItem('email') || null
+        }
+      };
+      try{
+        const res = await fetch('http://localhost:4000/api/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if(!res.ok) throw new Error('Request failed');
+        form.reset();
+        alert('Your request has been submitted. Our team will reach out soon.');
+      } catch(err){
+        alert('Failed to submit. Please try again.');
+      }
+    }
+  </script>
+  </head>
+<body>
+  <canvas id="particle-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9998;"></canvas>
+  <div class="dashboard">
+    <div class="header">
+      <div class="title">
+        <div id="avatar" class="avatar">S</div>
+        <div>
+          <h1 id="welcome">Welcome</h1>
+          <div id="student-id-line" class="meta"></div>
+          <small>Student Dashboard</small>
+        </div>
+      </div>
+      <a class="signout" href="index.html" onclick="localStorage.clear()">Sign out</a>
+    </div>
+
+    <div class="grid">
+      <div class="left">
+        <div class="card" style="margin-bottom: 20px;">
+          <h2>Your Metrics</h2>
+          <div class="metrics">
+            <div class="metric"><div class="label">GPA</div><div class="value">3.8</div></div>
+            <div class="metric"><div class="label">Credits</div><div class="value">72/120</div></div>
+            <div class="metric"><div class="label">Attendance</div><div class="value">95%</div></div>
+            <div class="metric"><div class="label">Alerts</div><div class="value">0</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom: 20px;">
+          <h2>Upcoming Classes</h2>
+          <div class="list">
+            <div class="list-item"><span>CS 301 - Algorithms</span><span class="chip">10:30 AM</span></div>
+            <div class="list-item"><span>STAT 210 - Probability</span><span class="chip">12:00 PM</span></div>
+            <div class="list-item"><span>ENG 102 - Composition</span><span class="chip">2:00 PM</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Help Request</h2>
+          <form class="form" onsubmit="submitHelpRequest(event)">
+            <div class="row">
+              <div>
+                <label for="category">Category</label>
+                <select id="category" name="category" required>
+                  <option value="">Select category</option>
+                  <option>Housing</option>
+                  <option>Academics</option>
+                  <option>Classes</option>
+                  <option>Financial</option>
+                  <option>Health & Wellness</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label for="urgency">Urgency</label>
+                <select id="urgency" name="urgency" required>
+                  <option>Low</option>
+                  <option>Normal</option>
+                  <option>High</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label for="subject">Subject</label>
+              <input id="subject" name="subject" placeholder="Brief summary" required />
+            </div>
+            <div>
+              <label for="details">Details</label>
+              <textarea id="details" name="details" placeholder="Describe the issue..." required></textarea>
+            </div>
+            <div class="actions">
+              <button type="reset" class="btn secondary">Clear</button>
+              <button type="submit" class="btn primary">Submit Request</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="card" style="margin-bottom: 20px;">
+          <h2>Advisor</h2>
+          <div class="list">
+            <div class="list-item"><span>Dr. Jane Smith</span><span class="chip">CS Advising</span></div>
+            <div class="list-item"><span>Next availability</span><span class="chip">Tomorrow 3 PM</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Notifications</h2>
+          <div class="list">
+            <div class="list-item"><span>Midterm results posted for CS 301</span><span class="chip">New</span></div>
+            <div class="list-item"><span>Library book due in 3 days</span><span class="chip">Reminder</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advisor Login - Student Retention System</title>
+  <link rel="stylesheet" href="../src/styles/variables.css" />
+  <link rel="stylesheet" href="../src/styles/cursor.css" />
+  <link rel="stylesheet" href="../src/styles/interactions.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --primary: #0d47a1;   /* deep blue to match index theme */
+      --primary-2: #1565c0; /* lighter blue */
+      --text: #0f172a;
+      --muted: #475569;
+      --ring: 0 0 0 4px rgba(21,101,192,.15);
+      --shadow: 0 20px 40px rgba(2,6,23,.18);
+    }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: var(--text);
+      background: linear-gradient(0deg, rgba(255,255,255,.88), rgba(255,255,255,.88)), url('../Images/advisors-advising-students.png') center / cover no-repeat fixed;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .topbar { position: fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between; padding: 12px 20px; background: linear-gradient(90deg, var(--primary), var(--primary-2)); color:#fff; z-index: 10; }
+    .topbar .brand { font-weight: 800; letter-spacing:.2px; }
+    .topbar nav { display:flex; gap: 14px; }
+    .topbar a { color:#e3f2fd; text-decoration:none; font-weight:600; }
+    .topbar a:hover { text-decoration: underline; }
+
+    .login-container { background: rgba(255,255,255,.96); backdrop-filter: blur(12px); border-radius: 24px; padding: 36px 32px; box-shadow: var(--shadow); width: 100%; max-width: 440px; position: relative; overflow: hidden; border: 1px solid #ffe4ec; }
+
+    .login-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #f093fb, #f5576c);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo h1 { font-size: 26px; font-weight: 800; letter-spacing: .2px; background: linear-gradient(135deg, var(--primary), var(--primary-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo p { color: var(--muted); font-size: 14px; margin-top: 6px; }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .form-group input, .form-group select { width: 100%; padding: 12px 14px; border: 2px solid #f8cfe4; border-radius: 12px; font-size: 15px; transition: border-color .2s ease, box-shadow .2s ease, transform .05s ease; background: #fff; }
+
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: var(--ring); }
+
+    .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform .06s ease, box-shadow .2s ease; box-shadow: 0 14px 28px rgba(245,87,108,.28); }
+
+    .login-btn:hover { transform: translateY(-1px); box-shadow: 0 16px 32px rgba(245,87,108,.35); }
+
+    .login-btn:active { transform: translateY(0); }
+
+    .forgot-password {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .forgot-password a { color: var(--primary); text-decoration: none; font-size: 14px; font-weight: 600; }
+
+    .forgot-password a:hover {
+      text-decoration: underline;
+    }
+
+    .switch-login {
+      text-align: center;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e1e5e9;
+    }
+
+    .switch-login a { color: var(--primary); text-decoration: none; font-size: 14px; font-weight: 600; }
+
+    .switch-login a:hover {
+      text-decoration: underline;
+    }
+
+    .error-message { background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; display: none; border: 1px solid #fee2e2; }
+
+    .success-message { background: #f0fdf4; color: #065f46; padding: 12px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; display: none; border: 1px solid #dcfce7; }
+
+    .form-toggle { display: flex; margin-bottom: 24px; background: rgba(255,255,255,.7); border-radius: 12px; padding: 4px; border: 1px solid #ffd6e8; }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: #666;
+    }
+
+    .tab-btn.active { background: #fff; color: #f5576c; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+
+    .form-container {
+      display: none;
+    }
+
+    .form-container.active {
+      display: block;
+    }
+
+    .form-group select:focus {
+      outline: none;
+      border-color: #f093fb;
+      box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.1);
+    }
+
+    @media (max-width: 480px) { .login-container { padding: 28px 18px; margin: 10px; } }
+  </style>
+</head>
+<body>
+  <canvas id="particle-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9;"></canvas>
+  <div class="topbar">
+    <div class="brand">Student Retention Portal</div>
+    <nav>
+      <a href="index.html">Site home</a>
+      <a href="student-login.html">Student Login</a>
+    </nav>
+  </div>
+
+  <div class="login-container ripple-container">
+    <div class="logo">
+      <h1>👨‍🏫 Advisor Portal</h1>
+      <p>Manage student retention and progress</p>
+    </div>
+
+    <div id="error-message" class="error-message"></div>
+    <div id="success-message" class="success-message"></div>
+
+    <div class="form-toggle">
+      <button id="login-tab" class="tab-btn active">Sign In</button>
+      <button id="signup-tab" class="tab-btn">Sign Up</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="advisor-login-form" class="form-container active">
+      <div class="form-group">
+        <label for="advisor-email">Email Address</label>
+        <input type="email" id="advisor-email" name="advisorEmail" placeholder="Enter your email address" required>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="Enter your password" required>
+      </div>
+
+      <div class="form-group">
+        <label for="department">Department</label>
+        <select id="department" name="department" style="width: 100%; padding: 12px 16px; border: 2px solid #e1e5e9; border-radius: 12px; font-size: 16px; background: #fff;">
+          <option value="">Select Department</option>
+          <option value="computer-science">Computer Science</option>
+          <option value="engineering">Engineering</option>
+          <option value="business">Business</option>
+          <option value="medicine">Medicine</option>
+          <option value="arts">Arts & Humanities</option>
+        </select>
+      </div>
+
+      <button type="submit" class="login-btn ripple-container">
+        Sign In
+      </button>
+    </form>
+
+    <!-- Signup Form -->
+    <form id="advisor-signup-form" class="form-container">
+      <div class="form-group">
+        <label for="advisor-full-name">Full Name</label>
+        <input type="text" id="advisor-full-name" name="fullName" placeholder="Enter your full name" required>
+      </div>
+
+      <div class="form-group">
+        <label for="advisor-email-signup">Email Address</label>
+        <input type="email" id="advisor-email-signup" name="email" placeholder="Enter your email address" required>
+      </div>
+
+      <div class="form-group">
+        <label for="advisor-id">Employee ID</label>
+        <input type="text" id="advisor-id" name="advisorId" placeholder="Enter your employee ID" required>
+      </div>
+
+      <div class="form-group">
+        <label for="department-signup">Department</label>
+        <select id="department-signup" name="department" style="width: 100%; padding: 12px 16px; border: 2px solid #e1e5e9; border-radius: 12px; font-size: 16px; background: #fff;">
+          <option value="">Select Department</option>
+          <option value="computer-science">Computer Science</option>
+          <option value="engineering">Engineering</option>
+          <option value="business">Business Administration</option>
+          <option value="medicine">Medicine</option>
+          <option value="arts">Arts & Humanities</option>
+          <option value="sciences">Natural Sciences</option>
+          <option value="education">Education</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="specialization">Specialization</label>
+        <input type="text" id="specialization" name="specialization" placeholder="e.g., Academic Advising, Career Counseling" required>
+      </div>
+
+      <div class="form-group">
+        <label for="password-signup">Password</label>
+        <input type="password" id="password-signup" name="password" placeholder="Create a password" required>
+      </div>
+
+      <div class="form-group">
+        <label for="confirm-password">Confirm Password</label>
+        <input type="password" id="confirm-password" name="confirmPassword" placeholder="Confirm your password" required>
+      </div>
+
+      <button type="submit" class="login-btn ripple-container">
+        Create Account
+      </button>
+    </form>
+
+    <div class="forgot-password">
+      <a href="#" onclick="alert('Please contact IT support to reset your password.')">Forgot Password?</a>
+    </div>
+
+    <div class="switch-login">
+      <a href="student-login.html">Are you a student? Click here</a>
+    </div>
+  </div>
+
+  <script type="module" src="../src/index.js"></script>
+  <script>
+    // Tab switching functionality
+    document.getElementById('login-tab').addEventListener('click', function() {
+      document.getElementById('login-tab').classList.add('active');
+      document.getElementById('signup-tab').classList.remove('active');
+      document.getElementById('advisor-login-form').classList.add('active');
+      document.getElementById('advisor-signup-form').classList.remove('active');
+    });
+
+    document.getElementById('signup-tab').addEventListener('click', function() {
+      document.getElementById('signup-tab').classList.add('active');
+      document.getElementById('login-tab').classList.remove('active');
+      document.getElementById('advisor-signup-form').classList.add('active');
+      document.getElementById('advisor-login-form').classList.remove('active');
+    });
+
+    // Login form submission
+    document.getElementById('advisor-login-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const advisorEmail = document.getElementById('advisor-email').value;
+      const password = document.getElementById('password').value;
+      const department = document.getElementById('department').value;
+      const errorDiv = document.getElementById('error-message');
+      const successDiv = document.getElementById('success-message');
+      
+      // Hide previous messages
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+      
+      // Basic validation
+      if (!advisorEmail || !password || !department) {
+        errorDiv.textContent = 'Please fill in all fields.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(advisorEmail)) {
+        errorDiv.textContent = 'Please enter a valid email address.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // Simulate login process
+      successDiv.textContent = 'Login successful! Redirecting to advisor dashboard...';
+      successDiv.style.display = 'block';
+      
+      setTimeout(async () => {
+        try {
+          // Fetch advisor profile by email
+          const res = await fetch(`http://localhost:4000/api/entries?type=advisor-profile&email=${encodeURIComponent(advisorEmail)}&limit=1`);
+          if (res.ok){
+            const items = await res.json();
+            const profile = items && items[0];
+            if (profile && profile.data){
+              localStorage.setItem('advisorFullName', profile.data.fullName || '');
+              localStorage.setItem('advisorEmail', profile.data.email || advisorEmail);
+              localStorage.setItem('advisorId', profile.data.advisorId || '');
+              localStorage.setItem('department', profile.data.department || department);
+              localStorage.setItem('specialization', profile.data.specialization || '');
+            }
+          }
+        } catch (e) {}
+        window.location.href = 'advisor-dashboard.html';
+      }, 1000);
+    });
+
+    // Signup form submission
+    document.getElementById('advisor-signup-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const fullName = document.getElementById('advisor-full-name').value;
+      const email = document.getElementById('advisor-email-signup').value;
+      const advisorId = document.getElementById('advisor-id').value;
+      const department = document.getElementById('department-signup').value;
+      const specialization = document.getElementById('specialization').value;
+      const password = document.getElementById('password-signup').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+      const errorDiv = document.getElementById('error-message');
+      const successDiv = document.getElementById('success-message');
+      
+      // Hide previous messages
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+      
+      // Basic validation
+      if (!fullName || !email || !advisorId || !department || !specialization || !password || !confirmPassword) {
+        errorDiv.textContent = 'Please fill in all fields.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errorDiv.textContent = 'Please enter a valid email address.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // Password confirmation
+      if (password !== confirmPassword) {
+        errorDiv.textContent = 'Passwords do not match.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // Password strength check
+      if (password.length < 6) {
+        errorDiv.textContent = 'Password must be at least 6 characters long.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // Simulate signup process
+      successDiv.textContent = `Account created successfully! Welcome, ${fullName}! Redirecting to login...`;
+      successDiv.style.display = 'block';
+      
+      // Save profile to backend and cache
+      (async () => {
+        try {
+          await fetch('http://localhost:4000/api/entries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'advisor-profile',
+              data: { fullName, email, advisorId, department, specialization }
+            })
+          });
+        } catch(e) {}
+        try {
+          localStorage.setItem('advisorFullName', fullName);
+          localStorage.setItem('advisorEmail', email);
+          localStorage.setItem('advisorId', advisorId);
+          localStorage.setItem('department', department);
+          localStorage.setItem('specialization', specialization);
+        } catch(e) {}
+      })();
+
+      // Switch to login tab after 3 seconds
+      setTimeout(() => {
+        document.getElementById('login-tab').click();
+        document.getElementById('advisor-email').value = email;
+        successDiv.style.display = 'none';
+      }, 3000);
+    });
+
+    // Add focus styling to select elements
+    document.getElementById('department').addEventListener('focus', function() {
+      this.style.borderColor = '#f093fb';
+      this.style.boxShadow = '0 0 0 3px rgba(240, 147, 251, 0.1)';
+    });
+
+    document.getElementById('department').addEventListener('blur', function() {
+      this.style.borderColor = '#e1e5e9';
+      this.style.boxShadow = 'none';
+    });
+
+    document.getElementById('department-signup').addEventListener('focus', function() {
+      this.style.borderColor = '#f093fb';
+      this.style.boxShadow = '0 0 0 3px rgba(240, 147, 251, 0.1)';
+    });
+
+    document.getElementById('department-signup').addEventListener('blur', function() {
+      this.style.borderColor = '#e1e5e9';
+      this.style.boxShadow = 'none';
+    });
+  </script>
+</body>
+</html>

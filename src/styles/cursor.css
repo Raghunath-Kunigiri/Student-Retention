@@ -1,0 +1,36 @@
+.cursor{
+  position: fixed;
+  pointer-events: none;
+  width: var(--cursor-size);
+  height: var(--cursor-size);
+  border-radius: 50%;
+  transform: translate3d(-50%,-50%,0);
+  transition: transform var(--motion-duration-micro) var(--ease-micro);
+  background: var(--cursor-color);
+  z-index: 9999;
+  mix-blend-mode: normal;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.cursor.is-visible{ 
+  opacity: 1; 
+  visibility: visible; 
+}
+
+.cursor.is-pressing{ transform: translate3d(-50%,-50%,0) scale(0.98); }
+
+@media (prefers-reduced-motion: reduce){
+  .cursor{ transition: none; }
+}
+
+/* Hide native cursor when custom cursor is active */
+body.cursor-active{
+  cursor: none !important;
+}
+
+body.cursor-active *{
+  cursor: none !important;
+}
+
+

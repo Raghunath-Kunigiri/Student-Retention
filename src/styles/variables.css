@@ -1,0 +1,23 @@
+:root{
+  --cursor-size: 28px;
+  --cursor-color: rgba(0,0,0,0.85);
+  --accent: #0666ff;
+  --particle-color: rgba(6,102,255,0.9);
+  --magnet-radius: 110px;
+  --magnet-strength: 0.18;
+  --ease-micro: cubic-bezier(.2,.9,.3,1);
+  --ease-medium: cubic-bezier(.22,.8,.36,1);
+  --motion-duration-micro: 120ms;
+  --motion-duration-medium: 360ms;
+  --motion-duration-long: 700ms;
+  --reduced-motion-scale: 0.02;
+}
+
+@media (prefers-reduced-motion: reduce){
+  :root{
+    --motion-duration-micro: 10ms;
+    --motion-duration-medium: 20ms;
+  }
+}
+
+
