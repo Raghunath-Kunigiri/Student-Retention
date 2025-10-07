@@ -1,0 +1,101 @@
+student_id,first_name,last_name,email,phone,major,year,birth_date,enrollment_status
+1000,Veronica,Carroll,veronica.carroll@horizoneu.edu,+1-551-403-9349x8037,Biology,Second Year,2004-08-13,Enrolled
+1001,Ryan,Reyes,ryan.reyes@horizoneu.edu,823-919-3635x006,Biology,Second Year,2007-03-05,Enrolled
+1002,Meredith,Griffin,meredith.griffin@horizoneu.edu,(726)221-7589x9723,English,First Year,2006-08-30,Enrolled
+1003,Nicole,Andersen,nicole.andersen@horizoneu.edu,(957)788-2843x7549,Psychology,First Year,2000-08-19,Enrolled
+1004,Jamie,Hayes,jamie.hayes@horizoneu.edu,475-619-1185x198,English,Third Year,2001-08-25,Enrolled
+1005,Yvonne,Allen,yvonne.allen@horizoneu.edu,+1-929-705-8352,Political Science,Second Year,2002-08-30,Enrolled
+1006,Cameron,Villegas,cameron.villegas@horizoneu.edu,(709)584-2843x998,Business Administration,Second Year,2006-10-28,Enrolled
+1007,Matthew,Gutierrez,matthew.gutierrez@horizoneu.edu,001-730-214-6505,Biology,Fourth Year,2004-06-14,Enrolled
+1008,Thomas,Griffin,thomas.griffin@horizoneu.edu,831-659-8540x9872,Business Administration,Fourth Year,2001-09-11,Enrolled
+1009,Cassandra,Clark,cassandra.clark@horizoneu.edu,(404)585-8322,Political Science,Second Year,2001-04-20,Enrolled
+1010,Alicia,Scott,alicia.scott@horizoneu.edu,907-567-4347x19008,Political Science,Third Year,2000-08-23,Enrolled
+1011,Jodi,Kline,jodi.kline@horizoneu.edu,001-524-929-3388,Political Science,Fourth Year,1999-11-10,Enrolled
+1012,Katie,Jones,katie.jones@horizoneu.edu,(322)770-8751,Political Science,Third Year,2000-01-23,Enrolled
+1013,Elizabeth,Espinoza,elizabeth.espinoza@horizoneu.edu,+1-723-736-0478x39292,Business Administration,First Year,2000-02-25,Enrolled
+1014,Steven,Hernandez,steven.hernandez@horizoneu.edu,574.482.1481x86940,Computer Science,Second Year,2002-02-03,Enrolled
+1015,Cynthia,Aguilar,cynthia.aguilar@horizoneu.edu,606-682-3636,English,Second Year,2001-06-16,Enrolled
+1016,Kim,Hughes,kim.hughes@horizoneu.edu,+1-794-797-4568,English,Third Year,2002-09-19,Enrolled
+1017,Richard,Richards,richard.richards@horizoneu.edu,892.481.9928x64005,Political Science,First Year,2007-02-18,Enrolled
+1018,Vincent,Johnson,vincent.johnson@horizoneu.edu,(460)795-9674,Business Administration,Fourth Year,2000-07-23,Enrolled
+1019,Ashley,Cooke,ashley.cooke@horizoneu.edu,001-943-271-9805x889,English,First Year,2004-07-11,Enrolled
+1020,Krystal,Jackson,krystal.jackson@horizoneu.edu,(746)753-9535x67497,Business Administration,Third Year,2001-05-16,Enrolled
+1021,Craig,Cantu,craig.cantu@horizoneu.edu,246-342-4433,Political Science,Fourth Year,2004-09-06,Enrolled
+1022,Alison,Todd,alison.todd@horizoneu.edu,567-213-9527,English,Fourth Year,2003-09-19,Enrolled
+1023,Julie,Edwards,julie.edwards@horizoneu.edu,001-942-403-4811x77110,English,Fourth Year,2002-06-12,Enrolled
+1024,Brittany,Harding,brittany.harding@horizoneu.edu,750.961.1054,Computer Science,Second Year,2003-05-27,Enrolled
+1025,Julie,Peterson,julie.peterson@horizoneu.edu,425-889-0363x510,English,Third Year,2000-01-25,Enrolled
+1026,David,Rogers,david.rogers@horizoneu.edu,(366)881-2994x357,Political Science,Fourth Year,2003-12-16,Enrolled
+1027,Lisa,Moore,lisa.moore@horizoneu.edu,(920)330-2802x947,Computer Science,Fourth Year,2000-02-05,Enrolled
+1028,Theresa,Wilkerson,theresa.wilkerson@horizoneu.edu,(394)422-9219,English,Fourth Year,2000-11-26,Enrolled
+1029,William,Morris,william.morris@horizoneu.edu,001-239-758-1207,Business Administration,Second Year,2000-04-02,Enrolled
+1030,Michelle,Williams,michelle.williams@horizoneu.edu,001-699-359-8902,Business Administration,Third Year,2000-02-06,Enrolled
+1031,Gina,Ballard,gina.ballard@horizoneu.edu,(467)432-4714x8359,Business Administration,Second Year,2005-02-16,Enrolled
+1032,Sara,Foley,sara.foley@horizoneu.edu,928.633.1706x562,Political Science,First Year,2006-02-23,Enrolled
+1033,Katelyn,Martin,katelyn.martin@horizoneu.edu,741.572.7012x987,Computer Science,Fourth Year,2000-11-18,Enrolled
+1034,Steven,Davis,steven.davis@horizoneu.edu,675-595-8060x7057,Biology,Second Year,2005-06-13,Enrolled
+1035,Bruce,Dillon,bruce.dillon@horizoneu.edu,(797)962-2873x4369,Computer Science,Third Year,2004-09-01,Enrolled
+1036,Nicholas,Weaver,nicholas.weaver@horizoneu.edu,210.274.1931,English,Fourth Year,2000-03-18,Enrolled
+1037,Jeffrey,Johnson,jeffrey.johnson@horizoneu.edu,001-928-541-3425x563,Computer Science,Second Year,2000-10-17,Enrolled
+1038,Jacqueline,Miller,jacqueline.miller@horizoneu.edu,+1-431-695-4297,Biology,First Year,2006-03-22,Enrolled
+1039,Corey,Russell,corey.russell@horizoneu.edu,+1-291-355-7203x71400,Business Administration,First Year,2006-12-30,Enrolled
+1040,Lauren,Marshall,lauren.marshall@horizoneu.edu,(497)322-5971x1990,Computer Science,First Year,2005-09-17,Enrolled
+1041,Dale,Maynard,dale.maynard@horizoneu.edu,001-727-737-8602x7120,Business Administration,Third Year,1999-12-16,Enrolled
+1042,Peter,Roberts,peter.roberts@horizoneu.edu,001-448-672-6703x76547,Political Science,Third Year,2003-11-02,Enrolled
+1043,John,Hernandez,john.hernandez@horizoneu.edu,669.613.5289,Computer Science,Fourth Year,2000-10-01,Enrolled
+1044,Brenda,Burns,brenda.burns@horizoneu.edu,+1-799-902-6523x58492,English,Second Year,2006-01-05,Enrolled
+1045,Sarah,Stanley,sarah.stanley@horizoneu.edu,4893367141,Business Administration,First Year,2005-05-10,Enrolled
+1046,Kimberly,Robinson,kimberly.robinson@horizoneu.edu,4063823525,English,First Year,2001-07-12,Enrolled
+1047,Amanda,Lopez,amanda.lopez@horizoneu.edu,517-379-1078x63914,Computer Science,Third Year,2004-12-22,Enrolled
+1048,Crystal,Casey,crystal.casey@horizoneu.edu,(391)781-5382x4607,Psychology,First Year,2002-11-15,Enrolled
+1049,Melinda,Murphy,melinda.murphy@horizoneu.edu,216.957.5508,Business Administration,Fourth Year,2005-07-13,Enrolled
+1050,Michael,Wyatt,michael.wyatt@horizoneu.edu,535-993-1750x3032,Business Administration,Second Year,2005-10-20,Enrolled
+1051,Madeline,Underwood,madeline.underwood@horizoneu.edu,+1-534-522-8348,Political Science,Fourth Year,2001-08-08,Enrolled
+1052,Matthew,Robinson,matthew.robinson@horizoneu.edu,+1-279-607-2616x499,Biology,First Year,2000-12-13,Enrolled
+1053,Jerry,Anderson,jerry.anderson@horizoneu.edu,+1-821-910-1959x09009,Psychology,Fourth Year,2001-10-24,Enrolled
+1054,Jon,Foley,jon.foley@horizoneu.edu,+1-624-481-6823x0011,Political Science,Second Year,2000-01-15,Enrolled
+1055,Jake,Miller,jake.miller@horizoneu.edu,805-665-0138,Political Science,First Year,2007-06-11,Enrolled
+1056,Sarah,Cuevas,sarah.cuevas@horizoneu.edu,001-799-537-4927x6557,English,Fourth Year,2001-03-20,Enrolled
+1057,Jose,Howell,jose.howell@horizoneu.edu,878.459.4650,Computer Science,Third Year,2003-05-19,Enrolled
+1058,Olivia,Mcconnell,olivia.mcconnell@horizoneu.edu,+1-671-962-8272x811,Psychology,Second Year,2002-10-01,Enrolled
+1059,Kimberly,Knight,kimberly.knight@horizoneu.edu,411-855-4170,Psychology,Fourth Year,2002-08-09,Enrolled
+1060,Phillip,Bryant,phillip.bryant@horizoneu.edu,384.376.8798,Psychology,Fourth Year,2005-07-28,Enrolled
+1061,Tamara,Jones,tamara.jones@horizoneu.edu,(951)507-8565x0067,Political Science,First Year,2001-01-20,Enrolled
+1062,Nicole,Rollins,nicole.rollins@horizoneu.edu,(960)647-6938,Psychology,First Year,2000-02-15,Enrolled
+1063,Caleb,Ramos,caleb.ramos@horizoneu.edu,(568)467-9634x17163,English,Fourth Year,2000-08-26,Enrolled
+1064,Scott,Grant,scott.grant@horizoneu.edu,274-851-2969x93900,English,Fourth Year,2000-02-29,Enrolled
+1065,John,Osborne,john.osborne@horizoneu.edu,001-610-225-6755x8382,Political Science,Third Year,2000-10-19,Enrolled
+1066,Jacqueline,Evans,jacqueline.evans@horizoneu.edu,981.336.6735x29380,Computer Science,Second Year,2006-06-17,Enrolled
+1067,Eric,Obrien,eric.obrien@horizoneu.edu,3069626402,Biology,Third Year,2001-11-06,Enrolled
+1068,Patrick,Johnson,patrick.johnson@horizoneu.edu,(372)584-4845x90199,Computer Science,Second Year,2001-11-14,Enrolled
+1069,Adrian,Ingram,adrian.ingram@horizoneu.edu,672.309.6509,Computer Science,Second Year,2005-08-06,Enrolled
+1070,Martha,Holt,martha.holt@horizoneu.edu,544-241-7431x7909,Psychology,Third Year,2005-12-21,Enrolled
+1071,Melissa,Edwards,melissa.edwards@horizoneu.edu,(501)637-4877,Business Administration,Third Year,2002-12-04,Enrolled
+1072,Daniel,Spencer,daniel.spencer@horizoneu.edu,7856066416,Political Science,Fourth Year,2004-09-09,Enrolled
+1073,Autumn,Smith,autumn.smith@horizoneu.edu,898.768.0758,Biology,Third Year,2004-11-09,Enrolled
+1074,Linda,Valencia,linda.valencia@horizoneu.edu,883.305.0301,Political Science,Third Year,2007-09-18,Enrolled
+1075,Kevin,Manning,kevin.manning@horizoneu.edu,001-748-480-8569x58582,Biology,Third Year,2000-02-14,Enrolled
+1076,Alexander,Anderson,alexander.anderson@horizoneu.edu,438.260.0013x086,Biology,First Year,2001-09-10,Enrolled
+1077,William,Duncan,william.duncan@horizoneu.edu,(385)505-3729x16696,Business Administration,Third Year,2006-10-27,Enrolled
+1078,Sarah,Perry,sarah.perry@horizoneu.edu,554-431-2143,Political Science,Fourth Year,2001-05-17,Enrolled
+1079,Daniel,Oconnell,daniel.oconnell@horizoneu.edu,5296909497,Biology,Third Year,2007-02-07,Enrolled
+1080,Michelle,Cobb,michelle.cobb@horizoneu.edu,(660)994-7946,Psychology,First Year,2003-05-12,Enrolled
+1081,Charles,Richardson,charles.richardson@horizoneu.edu,307.551.4481x211,Psychology,Fourth Year,2007-05-15,Enrolled
+1082,Thomas,Hughes,thomas.hughes@horizoneu.edu,760.826.3419,Political Science,First Year,2006-03-22,Enrolled
+1083,Jennifer,Allen,jennifer.allen@horizoneu.edu,584-890-5890,English,Fourth Year,2003-11-01,Enrolled
+1084,Amanda,Best,amanda.best@horizoneu.edu,970-457-6753x378,Biology,Third Year,2004-07-31,Enrolled
+1085,Ashley,Kelly,ashley.kelly@horizoneu.edu,282-703-3031x779,Biology,First Year,2007-09-27,Enrolled
+1086,Andrea,Leblanc,andrea.leblanc@horizoneu.edu,001-688-243-0889x557,Computer Science,Third Year,2000-09-28,Enrolled
+1087,Joseph,Elliott,joseph.elliott@horizoneu.edu,+1-514-449-4511x46151,Computer Science,Fourth Year,2001-01-05,Enrolled
+1088,Jennifer,Sloan,jennifer.sloan@horizoneu.edu,+1-542-950-5893x394,English,Fourth Year,2002-11-22,Enrolled
+1089,Jenna,Brown,jenna.brown@horizoneu.edu,(524)250-2499x242,Biology,Fourth Year,2007-07-24,Enrolled
+1090,Willie,Moore,willie.moore@horizoneu.edu,001-411-527-4268x3927,English,First Year,2003-12-23,Enrolled
+1091,Monica,Miranda,monica.miranda@horizoneu.edu,001-716-541-5247x268,Psychology,Second Year,2006-08-28,Enrolled
+1092,Dylan,Patrick,dylan.patrick@horizoneu.edu,489-455-0859x9712,Biology,Second Year,2001-09-20,Enrolled
+1093,Larry,Reed,larry.reed@horizoneu.edu,(842)652-2015x1169,Biology,First Year,2007-07-26,Enrolled
+1094,Katherine,Dixon,katherine.dixon@horizoneu.edu,001-586-722-0820x251,Psychology,Third Year,2005-06-09,Enrolled
+1095,Cynthia,Bell,cynthia.bell@horizoneu.edu,331.238.5662,Political Science,First Year,2005-05-08,Enrolled
+1096,Andrea,Ballard,andrea.ballard@horizoneu.edu,(393)853-3241,Business Administration,Fourth Year,2007-08-25,Enrolled
+1097,Marcus,Moyer,marcus.moyer@horizoneu.edu,(811)461-3276,Psychology,First Year,2004-08-19,Enrolled
+1098,Gary,Shepherd,gary.shepherd@horizoneu.edu,2142857684,English,Third Year,2007-08-30,Enrolled
+1099,Ashley,Barnett,ashley.barnett@horizoneu.edu,835-913-7130x01574,Political Science,Fourth Year,2003-10-30,Enrolled

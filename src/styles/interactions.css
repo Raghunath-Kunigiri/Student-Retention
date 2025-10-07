@@ -9,12 +9,7 @@
 
 .ripple-container{ position: relative; overflow: hidden; }
 .ripple{
-  position: absolute;
-  border-radius: 50%;
-  background: var(--accent);
-  transform: translate3d(-50%,-50%,0);
-  pointer-events: none;
-  opacity: 0.2;
+  display: none; /* Disabled ripple effect */
 }
 
 .tooltip{

@@ -289,7 +289,7 @@
     });
 
     // Login form submission
-    document.getElementById('student-login-form').addEventListener('submit', function(e) {
+    document.getElementById('student-login-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       
       const studentId = document.getElementById('student-id').value;
@@ -308,28 +308,49 @@
         return;
       }
       
-      // Simulate login process
-      successDiv.textContent = 'Login successful! Redirecting to dashboard...';
+      // Show loading
+      successDiv.textContent = 'Authenticating...';
       successDiv.style.display = 'block';
       
-      // Simulate redirect after 1 second
-      setTimeout(async () => {
-        try {
-          // Fetch profile to get the real full name
-          const res = await fetch(`http://localhost:4000/api/entries?type=student-profile&studentId=${encodeURIComponent(studentId)}&limit=1`);
-          if (res.ok){
-            const items = await res.json();
-            const profile = items && items[0];
-            if (profile && profile.data){
-              localStorage.setItem('fullName', profile.data.fullName || '');
-              localStorage.setItem('email', profile.data.email || '');
-              localStorage.setItem('major', profile.data.major || '');
-            }
-          }
-          localStorage.setItem('studentId', studentId);
-        } catch (e) {}
-        window.location.href = 'student-dashboard.html';
-      }, 1000);
+      try {
+        // Authenticate with the server
+        const response = await fetch('http://localhost:4000/api/auth/student/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            studentId: studentId,
+            password: password
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Store session data
+          localStorage.setItem('studentSessionToken', result.sessionToken);
+          localStorage.setItem('studentId', result.user.studentId);
+          localStorage.setItem('fullName', result.user.fullName);
+          localStorage.setItem('email', result.user.email);
+          localStorage.setItem('major', result.user.major);
+          localStorage.setItem('year', result.user.year);
+          
+          successDiv.textContent = 'Login successful! Redirecting...';
+          successDiv.style.display = 'block';
+          
+          setTimeout(() => {
+            window.location.href = 'student-dashboard.html';
+          }, 1000);
+        } else {
+          errorDiv.textContent = result.error || 'Login failed. Please check your credentials.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
     });
 
     // Signup form submission

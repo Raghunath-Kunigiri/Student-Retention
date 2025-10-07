@@ -266,7 +266,7 @@
     });
 
     // Login form submission
-    document.getElementById('advisor-login-form').addEventListener('submit', function(e) {
+    document.getElementById('advisor-login-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       
       const advisorEmail = document.getElementById('advisor-email').value;
@@ -294,32 +294,53 @@
         return;
       }
       
-      // Simulate login process
-      successDiv.textContent = 'Login successful! Redirecting to advisor dashboard...';
+      // Show loading
+      successDiv.textContent = 'Authenticating...';
       successDiv.style.display = 'block';
       
-      setTimeout(async () => {
-        try {
-          // Fetch advisor profile by email
-          const res = await fetch(`http://localhost:4000/api/entries?type=advisor-profile&email=${encodeURIComponent(advisorEmail)}&limit=1`);
-          if (res.ok){
-            const items = await res.json();
-            const profile = items && items[0];
-            if (profile && profile.data){
-              localStorage.setItem('advisorFullName', profile.data.fullName || '');
-              localStorage.setItem('advisorEmail', profile.data.email || advisorEmail);
-              localStorage.setItem('advisorId', profile.data.advisorId || '');
-              localStorage.setItem('department', profile.data.department || department);
-              localStorage.setItem('specialization', profile.data.specialization || '');
-            }
-          }
-        } catch (e) {}
-        window.location.href = 'advisor-dashboard.html';
-      }, 1000);
+      try {
+        // Authenticate with the server
+        const response = await fetch('http://localhost:4000/api/auth/advisor/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: advisorEmail,
+            password: password,
+            department: department
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          // Store session data
+          localStorage.setItem('advisorSessionToken', result.sessionToken);
+          localStorage.setItem('advisorFullName', result.user.fullName);
+          localStorage.setItem('advisorEmail', result.user.email);
+          localStorage.setItem('advisorId', result.user.advisorId);
+          localStorage.setItem('department', result.user.department);
+          
+          successDiv.textContent = 'Login successful! Redirecting...';
+          successDiv.style.display = 'block';
+          
+          setTimeout(() => {
+            window.location.href = 'advisor-dashboard.html';
+          }, 1000);
+        } else {
+          errorDiv.textContent = result.error || 'Login failed. Please check your credentials.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
     });
 
     // Signup form submission
-    document.getElementById('advisor-signup-form').addEventListener('submit', function(e) {
+    document.getElementById('advisor-signup-form').addEventListener('submit', async function(e) {
       e.preventDefault();
       
       const fullName = document.getElementById('advisor-full-name').value;
@@ -365,37 +386,49 @@
         return;
       }
       
-      // Simulate signup process
-      successDiv.textContent = `Account created successfully! Welcome, ${fullName}! Redirecting to login...`;
+      // Show loading
+      successDiv.textContent = 'Creating account...';
       successDiv.style.display = 'block';
       
-      // Save profile to backend and cache
-      (async () => {
-        try {
-          await fetch('http://localhost:4000/api/entries', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'advisor-profile',
-              data: { fullName, email, advisorId, department, specialization }
-            })
-          });
-        } catch(e) {}
-        try {
-          localStorage.setItem('advisorFullName', fullName);
-          localStorage.setItem('advisorEmail', email);
-          localStorage.setItem('advisorId', advisorId);
-          localStorage.setItem('department', department);
-          localStorage.setItem('specialization', specialization);
-        } catch(e) {}
-      })();
+      try {
+        // Register with the server
+        const response = await fetch('http://localhost:4000/api/auth/advisor/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fullName: fullName,
+            email: email,
+            advisorId: advisorId,
+            department: department,
+            specialization: specialization,
+            password: password,
+            confirmPassword: confirmPassword
+          })
+        });
 
-      // Switch to login tab after 3 seconds
-      setTimeout(() => {
-        document.getElementById('login-tab').click();
-        document.getElementById('advisor-email').value = email;
-        successDiv.style.display = 'none';
-      }, 3000);
+        const result = await response.json();
+
+        if (result.success) {
+          successDiv.textContent = `Account created successfully! Welcome, ${fullName}! Redirecting to login...`;
+          successDiv.style.display = 'block';
+          
+          // Switch to login tab after 3 seconds
+          setTimeout(() => {
+            document.getElementById('login-tab').click();
+            document.getElementById('advisor-email').value = email;
+            successDiv.style.display = 'none';
+          }, 3000);
+        } else {
+          errorDiv.textContent = result.error || 'Registration failed. Please try again.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Registration error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
     });
 
     // Add focus styling to select elements
