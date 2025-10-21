@@ -186,7 +186,13 @@ router.post('/advisor/login', async (req, res) => {
     }
 
     // Verify password
+    console.log('Comparing password for advisor:', advisor.email);
+    console.log('Provided password length:', password.length);
+    console.log('Advisor password hash exists:', !!advisor.password);
+    
     const isPasswordValid = await advisor.comparePassword(password);
+    console.log('Password comparison result:', isPasswordValid);
+    
     if (!isPasswordValid) {
       return res.status(401).json({ 
         success: false, 
