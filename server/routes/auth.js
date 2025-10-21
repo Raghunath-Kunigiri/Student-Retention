@@ -134,6 +134,7 @@ router.post('/student/login', async (req, res) => {
 // Advisor login endpoint
 router.post('/advisor/login', async (req, res) => {
   try {
+    console.log('Advisor login request:', req.body);
     const { email, password, department } = req.body;
 
     if (!email || !password || !department) {
@@ -331,6 +332,7 @@ router.post('/student/register', async (req, res) => {
 // Advisor registration endpoint
 router.post('/advisor/register', async (req, res) => {
   try {
+    console.log('Advisor registration request:', req.body);
     const { fullName, email, advisorId, department, specialization, password, confirmPassword } = req.body;
 
     // Validation
