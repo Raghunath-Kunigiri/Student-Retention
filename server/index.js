@@ -98,10 +98,15 @@ async function start() {
 if (process.env.NODE_ENV === 'production') {
   // Connect to DB on first request
   app.use(async (req, res, next) => {
-    if (mongoose.connection.readyState === 0) {
-      await connectDB();
+    try {
+      if (mongoose.connection.readyState === 0) {
+        await connectDB();
+      }
+      next();
+    } catch (error) {
+      console.error('Database connection error:', error);
+      res.status(500).json({ error: 'Database connection failed' });
     }
-    next();
   });
 } else {
   // For local development
