@@ -1,8 +1,8 @@
 :root{
   --cursor-size: 28px;
   --cursor-color: rgba(0,0,0,0.85);
-  --accent: #0666ff;
-  --particle-color: rgba(6,102,255,0.9);
+  --accent: #6b7280;
+  --particle-color: rgba(107,114,128,0.3);
   --magnet-radius: 110px;
   --magnet-strength: 0.18;
   --ease-micro: cubic-bezier(.2,.9,.3,1);

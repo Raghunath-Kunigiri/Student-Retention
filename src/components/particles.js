@@ -45,7 +45,7 @@ export default class Particles {
       const t = p.life / p.maxLife;
       const alpha = Math.max(0, 1 - t);
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = 'rgba(6,102,255,0.95)';
+      ctx.fillStyle = 'rgba(107,114,128,0.3)';
       ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1 - t), 0, Math.PI * 2); ctx.fill();
       if (p.life > p.maxLife) p.alive = false;
     }

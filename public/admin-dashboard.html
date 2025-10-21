@@ -381,7 +381,7 @@
     async function loadDashboardData() {
       try {
         // Load statistics
-        const statsResponse = await fetch('http://localhost:4000/api/data/stats');
+        const statsResponse = await fetch(`${window.location.origin}/api/data/stats`);
         if (!statsResponse.ok) throw new Error('Failed to load statistics');
         const stats = await statsResponse.json();
 
@@ -422,7 +422,7 @@
           ...(status && { status })
         });
 
-        const response = await fetch(`http://localhost:4000/api/data/students?${params}`);
+        const response = await fetch(`${window.location.origin}/api/data/students?${params}`);
         if (!response.ok) throw new Error('Failed to load students');
         
         const data = await response.json();
@@ -497,7 +497,7 @@
     // Load risk analysis
     async function loadRiskAnalysis() {
       try {
-        const response = await fetch('http://localhost:4000/api/data/risk-analysis');
+        const response = await fetch(`${window.location.origin}/api/data/risk-analysis`);
         if (!response.ok) throw new Error('Failed to load risk analysis');
         
         const data = await response.json();
@@ -582,7 +582,7 @@
     // Load majors for filter
     async function loadMajors() {
       try {
-        const response = await fetch('http://localhost:4000/api/data/students?limit=1000');
+        const response = await fetch(`${window.location.origin}/api/data/students?limit=1000`);
         if (!response.ok) return;
         
         const data = await response.json();

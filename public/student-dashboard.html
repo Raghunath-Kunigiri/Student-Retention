@@ -76,7 +76,7 @@
       // If fullName not cached, fetch profile from backend
       if (!fullName && studentId){
         try {
-          const res = await fetch(`http://localhost:4000/api/entries?type=student-profile&studentId=${encodeURIComponent(studentId)}&limit=1`);
+          const res = await fetch(`${window.location.origin}/api/entries?type=student-profile&studentId=${encodeURIComponent(studentId)}&limit=1`);
           if (res.ok){
             const items = await res.json();
             const profile = items && items[0];
@@ -95,7 +95,85 @@
       document.getElementById('welcome').textContent = `Welcome, Student : ${displayName}`;
       document.getElementById('student-id-line').textContent = studentId ? `ID: ${studentId}` : '';
       document.getElementById('avatar').textContent = initials || 'S';
+
+      // Load advisor information
+      await loadMyAdvisor(studentId);
+      await loadAdvisors();
+      
+      // Setup department filter
+      document.getElementById('department-filter').addEventListener('change', async (e) => {
+        await loadAdvisors(e.target.value);
+      });
     });
+
+    async function loadMyAdvisor(studentId) {
+      if (!studentId) {
+        document.getElementById('my-advisor').innerHTML = '<div class="list-item">No advisor assigned</div>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${window.location.origin}/api/data/students/${studentId}/advisor`);
+        if (response.ok) {
+          const advisor = await response.json();
+          document.getElementById('my-advisor').innerHTML = `
+            <div class="list-item">
+              <span>${advisor.firstName} ${advisor.lastName}</span>
+              <span class="chip">${advisor.department}</span>
+            </div>
+            <div class="list-item">
+              <span>${advisor.email}</span>
+              <span class="chip">Contact</span>
+            </div>
+            <div class="list-item">
+              <span>${advisor.phone}</span>
+              <span class="chip">Phone</span>
+            </div>
+          `;
+        } else {
+          document.getElementById('my-advisor').innerHTML = '<div class="list-item">No advisor assigned</div>';
+        }
+      } catch (error) {
+        console.error('Error loading advisor:', error);
+        document.getElementById('my-advisor').innerHTML = '<div class="list-item">Error loading advisor</div>';
+      }
+    }
+
+    async function loadAdvisors(department = '') {
+      try {
+        let url = `${window.location.origin}/api/data/advisors`;
+        if (department) {
+          url = `${window.location.origin}/api/data/advisors/department/${encodeURIComponent(department)}`;
+        }
+        
+        const response = await fetch(url);
+        if (response.ok) {
+          const advisors = await response.json();
+          const advisorsList = document.getElementById('advisors-list');
+          
+          if (advisors.length === 0) {
+            advisorsList.innerHTML = '<div class="list-item">No advisors found</div>';
+            return;
+          }
+
+          advisorsList.innerHTML = advisors.map(advisor => `
+            <div class="list-item">
+              <span>${advisor.firstName} ${advisor.lastName}</span>
+              <span class="chip">${advisor.department}</span>
+            </div>
+            <div class="list-item">
+              <span>${advisor.email}</span>
+              <span class="chip">${advisor.phone}</span>
+            </div>
+          `).join('');
+        } else {
+          document.getElementById('advisors-list').innerHTML = '<div class="list-item">Error loading advisors</div>';
+        }
+      } catch (error) {
+        console.error('Error loading advisors:', error);
+        document.getElementById('advisors-list').innerHTML = '<div class="list-item">Error loading advisors</div>';
+      }
+    }
 
     async function submitHelpRequest(e){
       e.preventDefault();
@@ -113,7 +191,7 @@
         }
       };
       try{
-        const res = await fetch('http://localhost:4000/api/entries', {
+        const res = await fetch(`${window.location.origin}/api/entries`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -206,10 +284,9 @@
 
       <div class="right">
         <div class="card" style="margin-bottom: 20px;">
-          <h2>Advisor</h2>
-          <div class="list">
-            <div class="list-item"><span>Dr. Jane Smith</span><span class="chip">CS Advising</span></div>
-            <div class="list-item"><span>Next availability</span><span class="chip">Tomorrow 3 PM</span></div>
+          <h2>My Advisor</h2>
+          <div id="my-advisor" class="list">
+            <div class="loading">Loading advisor information...</div>
           </div>
         </div>
         <div class="card">
@@ -220,6 +297,22 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="card" style="margin-top: 20px;">
+      <h2>Available Advisors</h2>
+      <div style="margin-bottom: 15px;">
+        <select id="department-filter" style="width: 200px;">
+          <option value="">All Departments</option>
+          <option value="Computer Science">Computer Science</option>
+          <option value="Mathematics">Mathematics</option>
+          <option value="Engineering">Engineering</option>
+        </select>
+      </div>
+      <div id="advisors-list" class="list">
+        <div class="loading">Loading advisors...</div>
+      </div>
+    </div>
     </div>
   </div>
 </body>

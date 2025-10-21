@@ -1,5 +1,7 @@
 const express = require('express');
 const csvParser = require('../utils/csvParser');
+const Student = require('../models/Student');
+const Advisor = require('../models/Advisor');
 
 const router = express.Router();
 
@@ -15,7 +17,7 @@ function generateSessionToken() {
 router.post('/student/login', async (req, res) => {
   try {
     const { studentId, password } = req.body;
-
+    
     if (!studentId || !password) {
       return res.status(400).json({ 
         success: false, 
@@ -23,24 +25,31 @@ router.post('/student/login', async (req, res) => {
       });
     }
 
-    // Get student data from CSV first
-    const students = csvParser.parseCSV('students.csv');
-    let student = students.find(s => s.student_id.toString() === studentId.toString());
+    // First try to find student in MongoDB
+    const parsedStudentId = parseInt(studentId);
+    let student = await Student.findOne({ studentId: parsedStudentId });
 
-    // If not found in CSV, check database for registered students
+    // If not found in MongoDB, check CSV for existing students
     if (!student) {
-      try {
-        const Entry = require('../models/Entry');
-        const dbStudent = await Entry.findOne({ 
-          type: 'student-profile', 
-          'data.studentId': parseInt(studentId) 
+      const students = csvParser.parseCSV('students.csv');
+      const csvStudent = students.find(s => s.student_id.toString() === studentId.toString());
+      
+      if (csvStudent) {
+        // Create student in MongoDB from CSV data
+        student = new Student({
+          studentId: csvStudent.student_id,
+          firstName: csvStudent.first_name,
+          lastName: csvStudent.last_name,
+          email: csvStudent.email,
+          phone: csvStudent.phone || 'Not provided',
+          major: csvStudent.major,
+          year: csvStudent.year,
+          birthDate: new Date(csvStudent.birth_date),
+          enrollmentStatus: csvStudent.enrollment_status,
+          password: 'defaultpassword123' // Default password for CSV students
         });
         
-        if (dbStudent && dbStudent.data) {
-          student = dbStudent.data;
-        }
-      } catch (dbError) {
-        console.error('Database lookup error:', dbError);
+        await student.save();
       }
     }
 
@@ -51,39 +60,45 @@ router.post('/student/login', async (req, res) => {
       });
     }
 
-    // For demo purposes, we'll accept any password that's at least 6 characters
-    // In production, you'd hash passwords and store them securely
-    if (password.length < 6) {
+    // Verify password
+    const isPasswordValid = await student.comparePassword(password);
+    if (!isPasswordValid) {
       return res.status(401).json({ 
         success: false, 
         error: 'Invalid password' 
       });
     }
 
+    // Update last login
+    student.lastLogin = new Date();
+    await student.save();
+
+    // Calculate risk score
+    student.calculateRiskScore();
+
     // Create session
     const sessionToken = generateSessionToken();
     sessions.set(sessionToken, {
       type: 'student',
-      studentId: student.student_id,
+      studentId: student.studentId,
       userData: student,
       createdAt: new Date()
     });
-
-    // Get combined student data
-    const studentData = csvParser.getStudentData().find(s => s.student_id === student.student_id);
 
     res.json({
       success: true,
       sessionToken,
       user: {
-        studentId: student.student_id,
-        fullName: `${student.first_name} ${student.last_name}`,
+        studentId: student.studentId,
+        fullName: student.fullName,
         email: student.email,
         major: student.major,
         year: student.year,
-        academic: studentData?.academic || {},
-        financial: studentData?.financial || {},
-        housing: studentData?.housing || {}
+        academic: student.academic,
+        financial: student.financial,
+        housing: student.housing,
+        riskScore: student.riskScore,
+        riskFactors: student.riskFactors
       }
     });
 
@@ -117,49 +132,28 @@ router.post('/advisor/login', async (req, res) => {
       });
     }
 
-    // Get advisor data from CSV first
-    const advisors = csvParser.parseCSV('advisors.csv');
-    let advisor = advisors.find(a => a.email.toLowerCase() === email.toLowerCase());
-    
-    console.log('CSV lookup result:', advisor ? 'Found in CSV' : 'Not found in CSV');
+    // First try to find advisor in MongoDB
+    let advisor = await Advisor.findOne({ email: email.toLowerCase() });
 
-    // If not found in CSV, check database for registered advisors
+    // If not found in MongoDB, check CSV for existing advisors
     if (!advisor) {
-      try {
-        const Entry = require('../models/Entry');
-        console.log('Searching database for email:', email.toLowerCase());
-        
-        // Try both exact match and case-insensitive match
-        let dbAdvisor = await Entry.findOne({ 
-          type: 'advisor-profile', 
-          'data.email': email.toLowerCase() 
+      const advisors = csvParser.parseCSV('advisors.csv');
+      const csvAdvisor = advisors.find(a => a.email.toLowerCase() === email.toLowerCase());
+      
+      if (csvAdvisor) {
+        // Create advisor in MongoDB from CSV data
+        advisor = new Advisor({
+          advisorId: csvAdvisor.advisor_id,
+          firstName: csvAdvisor.first_name,
+          lastName: csvAdvisor.last_name,
+          email: csvAdvisor.email,
+          phone: csvAdvisor.phone || 'Not provided',
+          department: department, // Use provided department
+          specialization: 'General Academic Advising', // Default specialization
+          password: 'defaultpassword123' // Default password for CSV advisors
         });
         
-        if (!dbAdvisor) {
-          // Try case-insensitive search
-          dbAdvisor = await Entry.findOne({ 
-            type: 'advisor-profile',
-            $expr: {
-              $eq: [
-                { $toLower: "$data.email" },
-                email.toLowerCase()
-              ]
-            }
-          });
-        }
-        
-        console.log('Database lookup result:', dbAdvisor ? 'Found in DB' : 'Not found in DB');
-        
-        if (dbAdvisor) {
-          console.log('Raw DB data:', JSON.stringify(dbAdvisor, null, 2));
-          
-          if (dbAdvisor.data) {
-            advisor = dbAdvisor.data;
-            console.log('Using DB advisor data:', advisor);
-          }
-        }
-      } catch (dbError) {
-        console.error('Database lookup error:', dbError);
+        await advisor.save();
       }
     }
 
@@ -170,19 +164,24 @@ router.post('/advisor/login', async (req, res) => {
       });
     }
 
-    // For demo purposes, we'll accept any password that's at least 6 characters
-    if (password.length < 6) {
+    // Verify password
+    const isPasswordValid = await advisor.comparePassword(password);
+    if (!isPasswordValid) {
       return res.status(401).json({ 
         success: false, 
         error: 'Invalid password' 
       });
     }
 
+    // Update last login
+    advisor.lastLogin = new Date();
+    await advisor.save();
+
     // Create session
     const sessionToken = generateSessionToken();
     sessions.set(sessionToken, {
       type: 'advisor',
-      advisorId: advisor.advisor_id,
+      advisorId: advisor.advisorId,
       userData: advisor,
       createdAt: new Date()
     });
@@ -191,11 +190,14 @@ router.post('/advisor/login', async (req, res) => {
       success: true,
       sessionToken,
       user: {
-        advisorId: advisor.advisor_id || advisor.advisorId,
-        fullName: `${advisor.first_name || advisor.firstName} ${advisor.last_name || advisor.lastName}`,
+        advisorId: advisor.advisorId,
+        fullName: advisor.fullName,
         email: advisor.email,
-        department: department,
-        phone: advisor.phone || 'Not provided'
+        department: advisor.department,
+        specialization: advisor.specialization,
+        phone: advisor.phone,
+        currentStudents: advisor.currentStudents,
+        maxStudents: advisor.maxStudents
       }
     });
 
@@ -235,10 +237,8 @@ router.post('/student/register', async (req, res) => {
       });
     }
 
-    // Check if student ID already exists
-    const students = csvParser.parseCSV('students.csv');
-    const existingStudent = students.find(s => s.student_id.toString() === studentId.toString());
-    
+    // Check if student ID already exists in MongoDB
+    const existingStudent = await Student.findOne({ studentId: parseInt(studentId) });
     if (existingStudent) {
       return res.status(400).json({ 
         success: false, 
@@ -246,8 +246,8 @@ router.post('/student/register', async (req, res) => {
       });
     }
 
-    // Check if email already exists
-    const existingEmail = students.find(s => s.email.toLowerCase() === email.toLowerCase());
+    // Check if email already exists in MongoDB
+    const existingEmail = await Student.findOne({ email: email.toLowerCase() });
     if (existingEmail) {
       return res.status(400).json({ 
         success: false, 
@@ -255,38 +255,48 @@ router.post('/student/register', async (req, res) => {
       });
     }
 
-    // Create new student profile (in production, you'd save to database)
-    const [firstName, ...lastNameParts] = fullName.split(' ');
-    const lastName = lastNameParts.join(' ');
+    // Parse full name
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || 'Not provided';
 
-    const newStudent = {
-      student_id: parseInt(studentId),
-      first_name: firstName,
-      last_name: lastName,
-      email: email,
+    // Create new student in MongoDB
+    const newStudent = new Student({
+      studentId: parseInt(studentId),
+      firstName: firstName,
+      lastName: lastName,
+      email: email.toLowerCase(),
       major: major,
       year: 'First Year',
-      enrollment_status: 'Enrolled',
-      birth_date: '2000-01-01', // Default
-      phone: 'Not provided'
-    };
+      enrollmentStatus: 'Enrolled',
+      password: password,
+      academic: {
+        gpa: 0,
+        creditsCompleted: 0,
+        attendanceAbsences: 0
+      },
+      financial: {
+        feeBalance: 0,
+        scholarshipAmount: 0,
+        paymentStatus: 'Current'
+      },
+      housing: {
+        housingStatus: 'Commuter'
+      }
+    });
 
-    // Store in the entries collection
-    try {
-      const Entry = require('../models/Entry');
-      await Entry.create({
-        type: 'student-profile',
-        data: newStudent
-      });
-    } catch (dbError) {
-      console.error('Database save error:', dbError);
-      // Continue anyway for demo purposes
-    }
+    await newStudent.save();
 
     res.json({
       success: true,
       message: 'Registration successful! You can now log in.',
-      user: newStudent
+      user: {
+        studentId: newStudent.studentId,
+        fullName: newStudent.fullName,
+        email: newStudent.email,
+        major: newStudent.major,
+        year: newStudent.year
+      }
     });
 
   } catch (error) {
@@ -325,54 +335,62 @@ router.post('/advisor/register', async (req, res) => {
       });
     }
 
-    // Check if advisor already exists
-    const advisors = csvParser.parseCSV('advisors.csv');
-    const existingAdvisor = advisors.find(a => a.email.toLowerCase() === email.toLowerCase());
-    
-    if (existingAdvisor) {
+    // Check if advisor ID already exists in MongoDB
+    const existingAdvisorId = await Advisor.findOne({ advisorId: parseInt(advisorId) });
+    if (existingAdvisorId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Advisor ID already exists' 
+      });
+    }
+
+    // Check if email already exists in MongoDB
+    const existingEmail = await Advisor.findOne({ email: email.toLowerCase() });
+    if (existingEmail) {
       return res.status(400).json({ 
         success: false, 
         error: 'Email already registered' 
       });
     }
 
-    // Create new advisor profile
-    const [firstName, ...lastNameParts] = fullName.split(' ');
-    const lastName = lastNameParts.join(' ');
+    // Parse full name
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || 'Not provided';
 
-    const newAdvisor = {
-      advisor_id: parseInt(advisorId),
-      first_name: firstName,
-      last_name: lastName,
-      email: email,
+    // Create new advisor in MongoDB
+    const newAdvisor = new Advisor({
+      advisorId: parseInt(advisorId),
+      firstName: firstName,
+      lastName: lastName,
+      email: email.toLowerCase(),
+      department: department,
+      specialization: specialization,
+      password: password,
       phone: 'Not provided',
-      assigned_student_id: 'N/A'
-    };
+      title: 'Academic Advisor',
+      maxStudents: 50,
+      currentStudents: 0,
+      assignedStudents: [],
+      performance: {
+        totalMeetings: 0,
+        studentsRetained: 0,
+        averageStudentGPA: 0
+      }
+    });
 
-    // Store in the entries collection
-    try {
-      const Entry = require('../models/Entry');
-      const advisorData = {
-        ...newAdvisor,
-        department,
-        specialization
-      };
-      console.log('Saving advisor to database:', advisorData);
-      
-      const savedEntry = await Entry.create({
-        type: 'advisor-profile',
-        data: advisorData
-      });
-      
-      console.log('Advisor saved successfully:', savedEntry._id);
-    } catch (dbError) {
-      console.error('Database save error:', dbError);
-    }
+    await newAdvisor.save();
 
     res.json({
       success: true,
       message: 'Registration successful! You can now log in.',
-      user: newAdvisor
+      user: {
+        advisorId: newAdvisor.advisorId,
+        fullName: newAdvisor.fullName,
+        email: newAdvisor.email,
+        department: newAdvisor.department,
+        specialization: newAdvisor.specialization
+      }
     });
 
   } catch (error) {

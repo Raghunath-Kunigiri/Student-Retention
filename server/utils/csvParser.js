@@ -66,6 +66,11 @@ class CSVParser {
     }
   }
 
+  // Get academic records data
+  getAcademicData() {
+    return this.parseCSV('academic_records.csv');
+  }
+
   // Get combined student data with all related information
   getStudentData() {
     const students = this.parseCSV('students.csv');

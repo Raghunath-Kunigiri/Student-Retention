@@ -1,6 +1,6 @@
 const config = {
   cursorSize: 28,
-  enableParticles: true,
+  enableParticles: false,
   particleMax: 80,
   magnet: { radius: 120, strength: 0.16 },
   breakpoints: { disableParticlesBelow: 768 },

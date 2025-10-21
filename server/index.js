@@ -9,7 +9,7 @@ const app = express();
 
 // Config
 const PORT = process.env.PORT || 4000;
-const MONGODB_URI = process.env.MONGODB_URI || '';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://kunigiriraghunath9493:ZHIb5Fiq4kzo40UR@portfolio.kxnf8sl.mongodb.net/student_retention';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:4000').split(',');
 
 // Middleware
@@ -57,29 +57,58 @@ app.get('/api/health', (req, res) => {
 app.use('/api/entries', require('./routes/entries'));
 app.use('/api/data', require('./routes/data'));
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/migration', require('./routes/migration'));
 
-// Start server after DB connection
-async function start(){
-  if (!MONGODB_URI){
-    console.error('Missing MONGODB_URI. Set it in .env');
-    process.exit(1);
+// MongoDB connection function
+async function connectDB() {
+  if (!MONGODB_URI) {
+    console.error('Missing MONGODB_URI. Set it in environment variables');
+    return false;
   }
+  
   try {
-    await mongoose.connect(MONGODB_URI, { 
-      serverSelectionTimeoutMS: 10000 
-    });
-    console.log('Connected to MongoDB');
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect(MONGODB_URI, { 
+        serverSelectionTimeoutMS: 10000 
+      });
+      console.log('Connected to MongoDB');
+    }
+    return true;
+  } catch (err) {
+    console.error('Failed to connect to MongoDB:', err.message);
+    return false;
+  }
+}
+
+// Start server after DB connection (only for local development)
+async function start() {
+  const connected = await connectDB();
+  if (connected) {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📱 Frontend: http://localhost:${PORT}`);
       console.log(`🔧 API: http://localhost:${PORT}/api`);
     });
-  } catch (err) {
-    console.error('Failed to connect to MongoDB:', err.message);
+  } else {
     process.exit(1);
   }
 }
 
-start();
+// For Vercel deployment
+if (process.env.NODE_ENV === 'production') {
+  // Connect to DB on first request
+  app.use(async (req, res, next) => {
+    if (mongoose.connection.readyState === 0) {
+      await connectDB();
+    }
+    next();
+  });
+} else {
+  // For local development
+  start();
+}
+
+// Export for Vercel
+module.exports = app;
 
 

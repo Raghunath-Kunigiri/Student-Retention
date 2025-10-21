@@ -10,12 +10,12 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --primary: #6366f1;
-      --primary-2: #7c3aed;
+      --primary: #6b7280;
+      --primary-2: #9ca3af;
       --text: #1f2937;
       --muted: #6b7280;
-      --bg-grad: linear-gradient(135deg, rgba(99,102,241,.85) 0%, rgba(124,58,237,.85) 100%), url('../Images/Gemini_Generated_Image_3oo3p13oo3p13oo3.png') center / cover no-repeat fixed;
-      --ring: 0 0 0 4px rgba(99,102,241,.18);
+      --bg-grad: linear-gradient(135deg, rgba(107,114,128,.85) 0%, rgba(156,163,175,.85) 100%), url('../Images/Gemini_Generated_Image_3oo3p13oo3p13oo3.png') center / cover no-repeat fixed;
+      --ring: 0 0 0 4px rgba(107,114,128,.18);
       --shadow: 0 20px 40px rgba(2,6,23,.18);
     }
     body {
@@ -28,7 +28,7 @@
       padding: 24px;
     }
     .auth-shell{ display:grid; grid-template-columns: 1.2fr 1fr; gap: 28px; width: min(1080px, 100%); }
-    .hero{ position: relative; border-radius: 24px; overflow: hidden; background: linear-gradient(135deg, rgba(99,102,241,.25), rgba(124,58,237,.3)); border: 1px solid #e6eafe; box-shadow: 0 20px 40px rgba(2,6,23,.18); }
+    .hero{ position: relative; border-radius: 24px; overflow: hidden; background: linear-gradient(135deg, rgba(107,114,128,.25), rgba(156,163,175,.3)); border: 1px solid #e5e7eb; box-shadow: 0 20px 40px rgba(2,6,23,.18); }
     .hero::before{ content:''; position:absolute; inset:0; background: url('../Images/Gemini_Generated_Image_3oo3p13oo3p13oo3.png') center/cover no-repeat; filter: saturate(1.05) contrast(1.05) brightness(.95); opacity:.6; }
     .hero-inner{ position:relative; z-index:1; padding: 40px; color:#fff; text-shadow: 0 1px 0 rgba(0,0,0,.08); height:100%; display:flex; flex-direction:column; justify-content:space-between; }
     .brand{ display:flex; align-items:center; gap:12px; }
@@ -89,9 +89,9 @@
       box-shadow: var(--ring);
     }
 
-    .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform .06s ease, box-shadow .2s ease; box-shadow: 0 14px 28px rgba(99,102,241,.28); }
+    .login-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--primary-2)); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform .06s ease, box-shadow .2s ease; box-shadow: 0 14px 28px rgba(107,114,128,.28); }
 
-    .login-btn:hover { transform: translateY(-1px); box-shadow: 0 16px 32px rgba(99,102,241,.35); }
+    .login-btn:hover { transform: translateY(-1px); box-shadow: 0 16px 32px rgba(107,114,128,.35); }
 
     .login-btn:active { transform: translateY(0); }
 
@@ -314,7 +314,7 @@
       
       try {
         // Authenticate with the server
-        const response = await fetch('http://localhost:4000/api/auth/student/login', {
+        const response = await fetch(`${window.location.origin}/api/auth/student/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -403,35 +403,45 @@
       successDiv.textContent = `Account created successfully! Welcome, ${fullName}! Redirecting to login...`;
       successDiv.style.display = 'block';
       
-      // Save profile to backend and cache locally
+      // Register student with proper authentication
       (async () => {
         try {
-          const res = await fetch('http://localhost:4000/api/entries', {
+          const res = await fetch(`${window.location.origin}/api/auth/student/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              type: 'student-profile',
-              data: { studentId, fullName, email, major }
+              fullName: fullName,
+              email: email,
+              studentId: studentId,
+              major: major,
+              password: password,
+              confirmPassword: confirmPassword
             })
           });
-          if (!res.ok) throw new Error('Failed to save profile');
+          
+          const data = await res.json();
+          
+          if (!res.ok) {
+            throw new Error(data.error || 'Registration failed');
+          }
+          
+          // Registration successful
+          successDiv.textContent = `Registration successful! Welcome, ${fullName}! You can now log in.`;
+          successDiv.style.display = 'block';
+          
+          // Switch to login tab after 2 seconds
+          setTimeout(() => {
+            document.getElementById('login-tab').click();
+            document.getElementById('student-id').value = studentId;
+            successDiv.style.display = 'none';
+          }, 2000);
+          
         } catch(e) {
-          // ignore and continue
+          errorDiv.textContent = `Registration failed: ${e.message}`;
+          errorDiv.style.display = 'block';
+          successDiv.style.display = 'none';
         }
-        try {
-          localStorage.setItem('studentId', studentId);
-          localStorage.setItem('fullName', fullName);
-          localStorage.setItem('email', email);
-          localStorage.setItem('major', major);
-        } catch(e) {}
       })();
-
-      // Switch to login tab after 3 seconds
-      setTimeout(() => {
-        document.getElementById('login-tab').click();
-        document.getElementById('student-id').value = studentId;
-        successDiv.style.display = 'none';
-      }, 3000);
     });
   </script>
 </body>

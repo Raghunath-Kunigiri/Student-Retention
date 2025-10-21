@@ -1,21 +1,23 @@
-course_id,course_code,course_title,credits
-101,CS305,Reduced non-volatile knowledgebase,4
-102,CS374,Up-sized discrete Local Area Network,4
-103,CS300,Streamlined client-server application,4
-104,CS321,Enterprise-wide high-level emulation,3
-105,CS154,Synergized intermediate Internet solution,4
-106,CS231,Adaptive multimedia paradigm,4
-107,CS342,Multi-tiered tangible flexibility,3
-108,CS498,User-centric composite time-frame,4
-109,CS132,Fully-configurable multi-tasking contingency,3
-110,CS104,Programmable 24/7 throughput,4
-111,CS497,Sharable exuding matrices,3
-112,CS151,Centralized coherent artificial intelligence,3
-113,CS286,Compatible responsive hub,3
-114,CS341,Multi-tiered solution-oriented time-frame,4
-115,CS465,Networked dedicated projection,4
-116,CS431,User-centric modular middleware,4
-117,CS460,Multi-channeled incremental leverage,4
-118,CS213,Profound impactful info-mediaries,4
-119,CS239,Team-oriented value-added hub,4
-120,CS135,Multi-lateral homogeneous benchmark,4
+course_id,course_code,course_title,credits,department,description
+1,CS101,Principles of Programming,3,Computer Science,The three seven red along.
+2,CS110,Object-Oriented Programming,3,Computer Science,Sister friend across keep.
+3,CS210,Data Structures and Algorithms,3,Computer Science,Almost out behind military born result feel also.
+4,CS220,Programming Practicum,4,Computer Science,Plan certainly total remember product.
+5,CS340,Computer Networks,4,Computer Science,Partner his notice man.
+6,CS350,Database Systems,4,Computer Science,Debate senior Republican thus computer election word Republican.
+7,CS360,Object-Oriented Software Design,4,Computer Science,Six compare use serve lawyer answer notice.
+8,CS401,Web Programming,4,Computer Science,Necessary official ground everybody.
+9,CS415,Big Data,3,Computer Science,Including free great people attack loss.
+10,CS420,Computer Vision,4,Computer Science,Himself product fight.
+11,CS430,Parallel Programming,3,Computer Science,Anyone require travel buy well above.
+12,CS440,Distributed System,4,Computer Science,Science try middle action natural prove.
+13,CS450,Operating Systems,4,Computer Science,Should let effect develop.
+14,CS460,Artificial Intelligence (AI),3,Computer Science,Future hear else method.
+15,CS470,Applied Machine Learning (ML),4,Computer Science,Drop quite ahead fear reach.
+16,CS471,Machine Learning,3,Computer Science,Stock white woman seem be major.
+17,CS480,Computer Graphics,3,Computer Science,Everybody day edge song raise my contain require.
+18,CS481,Natural Language Processing,3,Computer Science,Physical ground me much right few.
+19,CS485,Autonomous Driving,4,Computer Science,Understand of hope better cell same win.
+20,CS495,Internship with Industry,3,Computer Science,Idea energy anything.
+21,CS498,Special Topics,3,Computer Science,Which long field parent spring understand give.
+22,CS499,Computing and Society,3,Computer Science,Despite team pressure Republican.
