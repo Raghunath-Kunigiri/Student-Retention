@@ -35,21 +35,35 @@ router.post('/student/login', async (req, res) => {
       const csvStudent = students.find(s => s.student_id.toString() === studentId.toString());
       
       if (csvStudent) {
-        // Create student in MongoDB from CSV data
-        student = new Student({
+        // For CSV students, we need to check if they have registered with a custom password
+        // If not, we'll create them with a default password that they need to change
+        console.log('Found CSV student, checking if they have a custom password...');
+        
+        // Try to find if this student has already been created with a custom password
+        const existingStudent = await Student.findOne({ 
           studentId: csvStudent.student_id,
-          firstName: csvStudent.first_name,
-          lastName: csvStudent.last_name,
-          email: csvStudent.email,
-          phone: csvStudent.phone || 'Not provided',
-          major: csvStudent.major,
-          year: csvStudent.year,
-          birthDate: new Date(csvStudent.birth_date),
-          enrollmentStatus: csvStudent.enrollment_status,
-          password: 'defaultpassword123' // Default password for CSV students
+          password: { $ne: 'defaultpassword123' }
         });
         
-        await student.save();
+        if (existingStudent) {
+          student = existingStudent;
+        } else {
+          // Create student in MongoDB from CSV data with default password
+          student = new Student({
+            studentId: csvStudent.student_id,
+            firstName: csvStudent.first_name,
+            lastName: csvStudent.last_name,
+            email: csvStudent.email,
+            phone: csvStudent.phone || 'Not provided',
+            major: csvStudent.major,
+            year: csvStudent.year,
+            birthDate: new Date(csvStudent.birth_date),
+            enrollmentStatus: csvStudent.enrollment_status,
+            password: 'defaultpassword123' // Default password for CSV students
+          });
+          
+          await student.save();
+        }
       }
     }
 
@@ -61,7 +75,13 @@ router.post('/student/login', async (req, res) => {
     }
 
     // Verify password
+    console.log('Comparing password for student:', student.studentId);
+    console.log('Provided password length:', password.length);
+    console.log('Student password hash exists:', !!student.password);
+    
     const isPasswordValid = await student.comparePassword(password);
+    console.log('Password comparison result:', isPasswordValid);
+    
     if (!isPasswordValid) {
       return res.status(401).json({ 
         success: false, 
