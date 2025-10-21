@@ -2,13 +2,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
 
 // Config
-const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://kunigiriraghunath9493:ZHIb5Fiq4kzo40UR@portfolio.kxnf8sl.mongodb.net/student_retention';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:4000').split(',');
 
@@ -37,27 +35,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, '../public')));
-app.use('/src', express.static(path.join(__dirname, '../src')));
-app.use('/Images', express.static(path.join(__dirname, '../Images')));
-
-// Root route - redirect to main page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-app.get('/favicon.ico', (req, res) => res.status(204).end());
-
 // Health
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
 // Routes
-app.use('/api/entries', require('./routes/entries'));
-app.use('/api/data', require('./routes/data'));
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/migration', require('./routes/migration'));
+app.use('/api/entries', require('../server/routes/entries'));
+app.use('/api/data', require('../server/routes/data'));
+app.use('/api/auth', require('../server/routes/auth'));
+app.use('/api/migration', require('../server/routes/migration'));
 
 // MongoDB connection function
 async function connectDB() {
@@ -80,40 +67,18 @@ async function connectDB() {
   }
 }
 
-// Start server after DB connection (only for local development)
-async function start() {
-  const connected = await connectDB();
-  if (connected) {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📱 Frontend: http://localhost:${PORT}`);
-      console.log(`🔧 API: http://localhost:${PORT}/api`);
-    });
-  } else {
-    process.exit(1);
-  }
-}
-
-// For Vercel deployment
-if (process.env.NODE_ENV === 'production') {
-  // Connect to DB on first request
-  app.use(async (req, res, next) => {
-    try {
-      if (mongoose.connection.readyState === 0) {
-        await connectDB();
-      }
-      next();
-    } catch (error) {
-      console.error('Database connection error:', error);
-      res.status(500).json({ error: 'Database connection failed' });
+// Connect to DB on first request
+app.use(async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState === 0) {
+      await connectDB();
     }
-  });
-} else {
-  // For local development
-  start();
-}
+    next();
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 // Export for Vercel
 module.exports = app;
-
-
