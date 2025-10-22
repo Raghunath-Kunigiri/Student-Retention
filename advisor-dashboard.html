@@ -504,6 +504,10 @@
     }
     
     function updateCourseList() {
+      console.log('updateCourseList called with courses:', courses);
+      console.log('Courses type:', typeof courses);
+      console.log('Courses length:', courses ? courses.length : 'undefined');
+      
       // Ensure courses is an array
       if (!Array.isArray(courses)) {
         console.warn('Courses data is not an array:', courses);
@@ -511,18 +515,30 @@
       }
       
       const courseList = document.getElementById('course-list');
-      if (!courseList) return;
+      if (!courseList) {
+        console.error('Course list element not found');
+        return;
+      }
       
+      console.log('Course list element found, clearing content');
       courseList.innerHTML = '';
       
-      courses.forEach(course => {
+      if (courses.length === 0) {
+        console.log('No courses to display');
+        courseList.innerHTML = '<div class="list-item">No courses available</div>';
+        return;
+      }
+      
+      console.log('Displaying', courses.length, 'courses');
+      courses.forEach((course, index) => {
+        console.log(`Course ${index}:`, course);
         const courseItem = document.createElement('div');
         courseItem.className = 'list-item';
         courseItem.innerHTML = `
           <div class="student-info">
-            <div class="student-name">${course.course_title}</div>
-            <div class="student-details">${course.course_code} • ${course.department} • ${course.credits} credits</div>
-            <div class="course-description">${course.description}</div>
+            <div class="student-name">${course.course_title || 'No title'}</div>
+            <div class="student-details">${course.course_code || 'No code'} • ${course.department || 'No department'} • ${course.credits || 'No credits'} credits</div>
+            <div class="course-description">${course.description || 'No description'}</div>
           </div>
           <span class="chip success">Active</span>
         `;
@@ -805,7 +821,8 @@
         // Refresh data when switching to specific tabs
         if (tabId === 'courses') {
           console.log('Refreshing courses data...');
-          updateCourseList();
+          // Force reload courses from API
+          loadCourses();
         } else if (tabId === 'students') {
           console.log('Refreshing students data...');
           updateStudentList();
@@ -1256,6 +1273,7 @@
         <h2><span class="card-icon">📚</span>Course Management</h2>
         <div class="actions">
           <button class="btn primary" onclick="openCourseModal()">Add Course</button>
+          <button class="btn secondary" onclick="loadCourses()">Refresh Courses</button>
         </div>
         <div class="list" id="course-list">
           <!-- Courses will be loaded here -->
