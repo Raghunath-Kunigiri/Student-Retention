@@ -450,6 +450,7 @@
           const data = await response.json();
           courses = Array.isArray(data) ? data : [];
           console.log('Courses data:', courses.length, 'courses loaded');
+          console.log('First course sample:', courses[0]);
         } else {
           console.error('Failed to load courses:', response.status);
           courses = [];
@@ -510,9 +511,9 @@
         courseItem.className = 'list-item';
         courseItem.innerHTML = `
           <div class="student-info">
-            <div class="student-name">${course.course_title || course.courseName}</div>
-            <div class="student-details">${course.course_code || course.courseCode} • ${course.department} • ${course.credits} credits</div>
-            <div class="course-description">${course.description || 'No description available'}</div>
+            <div class="student-name">${course.course_title}</div>
+            <div class="student-details">${course.course_code} • ${course.department} • ${course.credits} credits</div>
+            <div class="course-description">${course.description}</div>
           </div>
           <span class="chip success">Active</span>
         `;

@@ -448,6 +448,8 @@ router.get('/courses', async (req, res) => {
     
     // Get courses from CSV file
     const coursesData = csvParser.parseCSV('courses.csv');
+    console.log('Raw courses data from CSV:', coursesData.length, 'courses');
+    console.log('First course sample:', coursesData[0]);
     
     let filteredCourses = coursesData;
     
