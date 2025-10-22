@@ -184,6 +184,12 @@
       flex-direction: column;
       gap: 4px;
     }
+    .course-description {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+      line-height: 1.4;
+    }
     .student-name {
       font-weight: 600;
       color: #1f2937;
@@ -504,10 +510,11 @@
         courseItem.className = 'list-item';
         courseItem.innerHTML = `
           <div class="student-info">
-            <div class="student-name">${course.courseName}</div>
-            <div class="student-details">${course.courseCode} • ${course.department} • ${course.credits} credits</div>
+            <div class="student-name">${course.course_title || course.courseName}</div>
+            <div class="student-details">${course.course_code || course.courseCode} • ${course.department} • ${course.credits} credits</div>
+            <div class="course-description">${course.description || 'No description available'}</div>
           </div>
-          <span class="chip ${course.isActive ? 'success' : 'warning'}">${course.isActive ? 'Active' : 'Inactive'}</span>
+          <span class="chip success">Active</span>
         `;
         courseList.appendChild(courseItem);
       });

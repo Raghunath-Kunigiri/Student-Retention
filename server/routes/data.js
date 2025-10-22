@@ -446,24 +446,21 @@ router.get('/courses', async (req, res) => {
   try {
     const { department, semester, year } = req.query;
     
-    let query = { isActive: true };
+    // Get courses from CSV file
+    const coursesData = csvParser.parseCSV('courses.csv');
+    
+    let filteredCourses = coursesData;
     
     if (department) {
-      query.department = department;
+      filteredCourses = filteredCourses.filter(course => 
+        course.department.toLowerCase() === department.toLowerCase()
+      );
     }
     
-    if (semester) {
-      query.semester = semester;
-    }
+    // Sort by course code
+    filteredCourses.sort((a, b) => a.course_code.localeCompare(b.course_code));
     
-    if (year) {
-      query.year = year;
-    }
-    
-    const courses = await Course.find(query)
-      .sort({ courseCode: 1 });
-    
-    res.json(courses);
+    res.json(filteredCourses);
   } catch (error) {
     console.error('Courses error:', error);
     res.status(500).json({ error: error.message });
