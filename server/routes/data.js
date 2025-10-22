@@ -441,6 +441,35 @@ router.get('/students/:id/enrollments', async (req, res) => {
   }
 });
 
+// Test CSV parsing endpoint
+router.get('/courses/test', async (req, res) => {
+  try {
+    console.log('Testing CSV parsing...');
+    console.log('Current working directory:', process.cwd());
+    console.log('CSV parser datasets path:', csvParser.datasetsPath);
+    
+    const coursesData = csvParser.parseCSV('courses.csv');
+    console.log('CSV parsing result:', coursesData.length, 'courses');
+    console.log('First course:', coursesData[0]);
+    
+    res.json({
+      success: true,
+      count: coursesData.length,
+      sample: coursesData[0],
+      allCourses: coursesData,
+      workingDir: process.cwd(),
+      datasetsPath: csvParser.datasetsPath
+    });
+  } catch (error) {
+    console.error('CSV test error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Get courses data
 router.get('/courses', async (req, res) => {
   try {
