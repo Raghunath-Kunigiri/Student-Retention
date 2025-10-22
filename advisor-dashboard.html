@@ -445,14 +445,23 @@
 
     async function loadCourses() {
       try {
+        console.log('Loading courses from:', `${API_BASE_URL}/api/data/courses`);
         const response = await fetch(`${API_BASE_URL}/api/data/courses`);
+        console.log('Courses response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('Raw courses response:', data);
           courses = Array.isArray(data) ? data : [];
           console.log('Courses data:', courses.length, 'courses loaded');
           console.log('First course sample:', courses[0]);
+          
+          // Update the course list immediately
+          updateCourseList();
         } else {
           console.error('Failed to load courses:', response.status);
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
           courses = [];
         }
       } catch (error) {
@@ -792,6 +801,15 @@
         tabButton.classList.add('active');
         tabContent.classList.add('active');
         console.log('Successfully switched to tab:', tabId);
+        
+        // Refresh data when switching to specific tabs
+        if (tabId === 'courses') {
+          console.log('Refreshing courses data...');
+          updateCourseList();
+        } else if (tabId === 'students') {
+          console.log('Refreshing students data...');
+          updateStudentList();
+        }
       } else {
         console.error('Tab button or content not found:', tabId);
       }
