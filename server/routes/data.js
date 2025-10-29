@@ -15,6 +15,7 @@ router.get('/csv-stats', async (req, res) => {
     // Get data from CSV files
     const studentsData = csvParser.getStudentData();
     const academicData = csvParser.getAcademicData();
+    const enrollmentsData = csvParser.parseCSV('enrollments.csv');
     
     // Total students from students.csv
     const totalStudents = studentsData.length;
@@ -28,20 +29,114 @@ router.get('/csv-stats', async (req, res) => {
       ? (validGPAs.reduce((sum, record) => sum + record.gpa, 0) / validGPAs.length).toFixed(2)
       : 0;
     
-    // Active enrollments (unique students in academic_records.csv)
-    const uniqueStudents = new Set(academicData.map(record => record.student_id));
-    const activeEnrollments = uniqueStudents.size;
+    // Active enrollments (unique students in enrollments.csv in the last 180 days)
+    const now = new Date();
+    const last180 = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+    const activeSet = new Set();
+    for (const e of enrollmentsData) {
+      const ts = new Date(e.enrolled_date);
+      if (!isNaN(ts.getTime()) && ts >= last180 && ts <= now) {
+        activeSet.add(e.student_id);
+      }
+    }
+    const activeEnrollments = activeSet.size;
+
+    // Retention (year-over-year using enrollments.csv):
+    // Identify the latest two years, cohort = unique students in year N-1, retained = also present in year N
+    const yearToStudents = new Map();
+    for (const e of enrollmentsData) {
+      const ts = new Date(e.enrolled_date);
+      if (isNaN(ts.getTime())) continue;
+      const y = ts.getFullYear();
+      if (!yearToStudents.has(y)) yearToStudents.set(y, new Set());
+      yearToStudents.get(y).add(e.student_id);
+    }
+    const years = Array.from(yearToStudents.keys()).sort((a,b)=>a-b);
+    let retentionRate = 0;
+    if (years.length >= 2) {
+      const fromYear = years[years.length - 2];
+      const toYear = years[years.length - 1];
+      const cohort = yearToStudents.get(fromYear);
+      const next = yearToStudents.get(toYear);
+      let retainedCount = 0;
+      for (const id of cohort) if (next.has(id)) retainedCount++;
+      retentionRate = cohort.size > 0 ? Math.round((retainedCount / cohort.size) * 100) : 0;
+    }
     
     const stats = {
       totalStudents,
       atRiskStudents,
       averageGPA: parseFloat(averageGPA),
-      activeEnrollments
+      activeEnrollments,
+      retentionRate
     };
     
     res.json(stats);
   } catch (error) {
     console.error('CSV stats error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// CSV-based retention rate for a date range using enrollments.csv
+router.get('/csv-retention', async (req, res) => {
+  try {
+    const { start, end, windowDays } = req.query;
+    if (!start || !end) {
+      return res.status(400).json({ error: 'Missing start or end query params (YYYY-MM-DD)' });
+    }
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+
+    // Normalize end date to end of day
+    endDate.setHours(23, 59, 59, 999);
+    const subsequentWindowDays = Number.isFinite(parseInt(windowDays)) ? parseInt(windowDays) : 365;
+    const subsequentEndDate = new Date(endDate.getTime() + subsequentWindowDays * 24 * 60 * 60 * 1000);
+
+    const students = csvParser.parseCSV('students.csv');
+    const enrollments = csvParser.parseCSV('enrollments.csv');
+
+    // Cohort: unique students with at least one enrollment within the initial period
+    const cohortIds = new Set();
+    for (const e of enrollments) {
+      const ts = new Date(e.enrolled_date);
+      if (!isNaN(ts.getTime()) && ts >= startDate && ts <= endDate) {
+        cohortIds.add(e.student_id);
+      }
+    }
+
+    // Retained: cohort students who have an enrollment in the subsequent period (after endDate up to window)
+    const retainedIds = new Set();
+    if (cohortIds.size > 0) {
+      for (const e of enrollments) {
+        if (!cohortIds.has(e.student_id)) continue;
+        const ts = new Date(e.enrolled_date);
+        if (!isNaN(ts.getTime()) && ts > endDate && ts <= subsequentEndDate) {
+          retainedIds.add(e.student_id);
+        }
+      }
+    }
+
+    const cohortSize = cohortIds.size;
+    const retainedCount = retainedIds.size;
+    const retentionRate = cohortSize > 0
+      ? Math.round((retainedCount / cohortSize) * 100)
+      : 0;
+
+    return res.json({
+      start,
+      end,
+      windowDays: subsequentWindowDays,
+      cohortSize,
+      retainedCount,
+      retentionRate
+    });
+  } catch (error) {
+    console.error('CSV retention error:', error);
     res.status(500).json({ error: error.message });
   }
 });

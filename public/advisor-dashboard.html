@@ -327,6 +327,7 @@
     }
   </style>
   <script type="module" src="../src/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     let currentAdvisor = null;
     let students = [];
@@ -444,6 +445,8 @@
           const data = await response.json();
           courses = Array.isArray(data) ? data : [];
           console.log('Courses data:', courses.length, 'courses loaded');
+          // Refresh UI after loading courses from CSV
+          updateCourseList();
         } else {
           console.error('Failed to load courses:', response.status);
           courses = [];
@@ -485,6 +488,8 @@
       updateStudentList();
       updateRecentActivity();
       updateCourseList();
+      // Render charts if analytics tab already visible
+      maybeRenderAnalyticsCharts();
     }
     
     function updateCourseList() {
@@ -504,10 +509,11 @@
         courseItem.className = 'list-item';
         courseItem.innerHTML = `
           <div class="student-info">
-            <div class="student-name">${course.courseName}</div>
-            <div class="student-details">${course.courseCode} • ${course.department} • ${course.credits} credits</div>
+            <div class="student-name">${course.course_title || course.courseName || 'No title'}</div>
+            <div class="student-details">${course.course_code || course.courseCode || 'No code'} • ${course.department || 'No department'} • ${course.credits || 'No credits'} credits</div>
+            ${course.description ? `<div class="course-description">${course.description}</div>` : ''}
           </div>
-          <span class="chip ${course.isActive ? 'success' : 'warning'}">${course.isActive ? 'Active' : 'Inactive'}</span>
+          <span class="chip success">Active</span>
         `;
         courseList.appendChild(courseItem);
       });
@@ -526,6 +532,8 @@
           document.getElementById('at-risk-students').textContent = stats.atRiskStudents;
           document.getElementById('avg-gpa').textContent = stats.averageGPA.toFixed(2);
           document.getElementById('active-enrollments').textContent = stats.activeEnrollments;
+          const rrEl = document.getElementById('retention-rate');
+          if (rrEl) rrEl.textContent = `${stats.retentionRate}%`;
         } else {
           console.error('Failed to load CSV stats:', response.status);
           // Fallback to 0 values
@@ -533,6 +541,8 @@
           document.getElementById('at-risk-students').textContent = '0';
           document.getElementById('avg-gpa').textContent = '0.00';
           document.getElementById('active-enrollments').textContent = '0';
+          const rrEl = document.getElementById('retention-rate');
+          if (rrEl) rrEl.textContent = '0%';
         }
       } catch (error) {
         console.error('Error loading CSV stats:', error);
@@ -541,6 +551,8 @@
         document.getElementById('at-risk-students').textContent = '0';
         document.getElementById('avg-gpa').textContent = '0.00';
         document.getElementById('active-enrollments').textContent = '0';
+        const rrEl = document.getElementById('retention-rate');
+        if (rrEl) rrEl.textContent = '0%';
       }
     }
 
@@ -972,19 +984,236 @@
       document.getElementById('report-modal').classList.add('active');
     }
 
-    function generateReport() {
+    async function generateReport() {
       const reportType = document.getElementById('report-type').value;
       const startDate = document.getElementById('start-date').value;
       const endDate = document.getElementById('end-date').value;
       
-      // In a real app, this would generate and download a report
-      alert(`Generating ${reportType} report from ${startDate} to ${endDate}`);
+      const resultsEl = document.getElementById('report-results');
+      if (resultsEl) {
+        resultsEl.textContent = 'Generating...';
+      }
+
+      if (!startDate || !endDate) {
+        if (resultsEl) resultsEl.textContent = 'Please select a valid date range';
+        return;
+      }
+
+      try {
+        if (reportType === 'retention') {
+          const url = `${API_BASE_URL}/api/data/csv-retention?start=${startDate}&end=${endDate}`;
+          const resp = await fetch(url);
+          if (!resp.ok) {
+            if (resp.status === 404) {
+              const fallback = await fetch(`${API_BASE_URL}/api/data/csv-stats`);
+              if (fallback.ok) {
+                const stats = await fallback.json();
+                if (resultsEl) {
+                  const rr = typeof stats.retentionRate === 'number' ? stats.retentionRate : 0;
+                  resultsEl.innerHTML = `
+                    <div style=\"margin-top:10px\">
+                      <div><strong>Range:</strong> ${startDate} → ${endDate}</div>
+                      <div><strong>Overall Retention Rate (fallback):</strong> ${rr}%</div>
+                      <div style=\"color:#9ca3af\">Date-range endpoint not found (404). Showing overall retention.</div>
+                    </div>
+                  `;
+                }
+                return;
+              }
+            }
+            throw new Error(`Failed to generate report (${resp.status})`);
+          }
+          const data = await resp.json();
+          if (resultsEl) {
+            // Prefer cohort-based fields if present
+            if (typeof data.cohortSize === 'number' && typeof data.retainedCount === 'number') {
+              resultsEl.innerHTML = `
+                <div style=\"margin-top:10px\">
+                  <div><strong>Range:</strong> ${data.start} → ${data.end}</div>
+                  <div><strong>Subsequent Window:</strong> ${data.windowDays} days</div>
+                  <div><strong>Initial Cohort:</strong> ${data.cohortSize}</div>
+                  <div><strong>Students Retained:</strong> ${data.retainedCount}</div>
+                  <div><strong>Retention Rate:</strong> ${data.retentionRate}%</div>
+                </div>
+              `;
+            } else {
+              // Backward compatibility with earlier response structure
+              resultsEl.innerHTML = `
+                <div style=\"margin-top:10px\">
+                  <div><strong>Range:</strong> ${data.start} → ${data.end}</div>
+                  <div><strong>Total Students:</strong> ${data.totalStudents ?? 0}</div>
+                  <div><strong>Active Students in Range:</strong> ${data.activeStudentsInRange ?? 0}</div>
+                  <div><strong>Retention Rate:</strong> ${data.retentionRate ?? 0}%</div>
+                </div>
+              `;
+            }
+          }
+        } else {
+          // Placeholder for other report types
+          if (resultsEl) resultsEl.textContent = `Report ${reportType} is not implemented yet.`;
+        }
+      } catch (err) {
+        if (resultsEl) resultsEl.textContent = `Error: ${err.message}`;
+      }
     }
 
     function openAtRiskModal() {
       const modal = document.getElementById('at-risk-modal');
       modal.classList.add('active');
       loadAtRiskStudents();
+    }
+
+    // ---------- Analytics Charts ----------
+    let retentionChart, performanceChart, riskChart;
+
+    function maybeRenderAnalyticsCharts() {
+      const analyticsTab = document.getElementById('analytics');
+      if (analyticsTab && analyticsTab.classList.contains('active')) {
+        renderRetentionChart();
+        renderPerformanceChart();
+        renderRiskChart();
+      }
+    }
+
+    // Wire nav tabs to render when analytics becomes active
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.nav-tab');
+      if (!btn) return;
+      const tabId = btn.getAttribute('data-tab');
+      if (tabId === 'analytics') {
+        // Slight delay to ensure canvas is laid out
+        setTimeout(maybeRenderAnalyticsCharts, 0);
+      }
+    });
+
+    async function renderRetentionChart() {
+      const canvas = document.getElementById('retentionChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      // Use overall retention from CSV stats as a gauge-like doughnut
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-stats`);
+        if (!resp.ok) throw new Error('stats fail');
+        const stats = await resp.json();
+        const rate = typeof stats.retentionRate === 'number' ? stats.retentionRate : 0;
+
+        const data = {
+          labels: ['Retained', 'Not Retained'],
+          datasets: [{
+            data: [rate, Math.max(0, 100 - rate)],
+            backgroundColor: ['#10b981', '#e5e7eb'],
+            borderWidth: 0
+          }]
+        };
+
+        if (retentionChart) retentionChart.destroy();
+        retentionChart = new Chart(ctx, {
+          type: 'doughnut',
+          data,
+          options: {
+            cutout: '70%',
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: true }
+            }
+          }
+        });
+      } catch (_) { /* ignore */ }
+    }
+
+    async function renderPerformanceChart() {
+      const canvas = document.getElementById('performanceChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (!resp.ok) throw new Error('students fail');
+        const data = await resp.json();
+
+        // GPA bands counts
+        const bands = [
+          { label: '<2.0', min: -Infinity, max: 2.0 },
+          { label: '2.0-2.5', min: 2.0, max: 2.5 },
+          { label: '2.5-3.0', min: 2.5, max: 3.0 },
+          { label: '3.0-3.5', min: 3.0, max: 3.5 },
+          { label: '3.5-4.0', min: 3.5, max: 4.01 }
+        ];
+        const counts = bands.map(b => 0);
+        for (const s of data) {
+          const g = s?.academic?.gpa ?? 0;
+          for (let i = 0; i < bands.length; i++) {
+            const b = bands[i];
+            if (g >= b.min && g < b.max) { counts[i]++; break; }
+          }
+        }
+
+        if (performanceChart) performanceChart.destroy();
+        performanceChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: bands.map(b => b.label),
+            datasets: [{
+              label: 'Students',
+              data: counts,
+              backgroundColor: '#3b82f6'
+            }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { beginAtZero: true }
+            }
+          }
+        });
+      } catch (_) { /* ignore */ }
+    }
+
+    async function renderRiskChart() {
+      const canvas = document.getElementById('riskChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (!resp.ok) throw new Error('students fail');
+        const data = await resp.json();
+
+        // Count at-risk (gpa < 3.1) by major
+        const map = new Map();
+        for (const s of data) {
+          const g = s?.academic?.gpa ?? 0;
+          if (g < 3.1) {
+            const major = s.major || 'Unknown';
+            map.set(major, (map.get(major) || 0) + 1);
+          }
+        }
+        const labels = Array.from(map.keys());
+        const values = Array.from(map.values());
+
+        if (riskChart) riskChart.destroy();
+        riskChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: 'At-Risk',
+              data: values,
+              backgroundColor: '#ef4444'
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { beginAtZero: true },
+              y: { grid: { display: false } }
+            }
+          }
+        });
+      } catch (_) { /* ignore */ }
     }
 
     function loadAtRiskStudents() {
@@ -1243,17 +1472,18 @@
         <div class="card">
           <h2><span class="card-icon">📊</span>Retention Rates</h2>
           <p>Track student retention by semester and program.</p>
-          <button class="btn primary" onclick="openReportModal()">Generate Report</button>
+          <div style="height:220px"><canvas id="retentionChart"></canvas></div>
+          <div style="margin-top:8px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
         </div>
         <div class="card">
           <h2><span class="card-icon">📈</span>Performance Trends</h2>
-          <p>Monitor GPA trends and academic performance.</p>
-          <button class="btn primary">View Trends</button>
+          <p>GPA distribution across bands.</p>
+          <div style="height:220px"><canvas id="performanceChart"></canvas></div>
         </div>
         <div class="card">
           <h2><span class="card-icon">🎯</span>Risk Analysis</h2>
-          <p>Identify students at risk of dropping out.</p>
-          <button class="btn primary">Analyze Risk</button>
+          <p>At-risk students by major.</p>
+          <div style="height:220px"><canvas id="riskChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -1462,6 +1692,7 @@
           <button class="btn secondary" onclick="document.getElementById('report-modal').classList.remove('active')">Cancel</button>
           <button class="btn primary" onclick="generateReport()">Generate Report</button>
         </div>
+        <div id="report-results" style="margin-top:12px;color:#374151;"></div>
       </div>
     </div>
   </div>

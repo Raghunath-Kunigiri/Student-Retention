@@ -1,0 +1,4 @@
+2025-10-29 14:44:26,376 - INFO - Logging configured. Log file: c:/Users/kunig/OneDrive/Documentos/Sidhu Project/Student Retention/Student-Retention/output\retention_script.log
+2025-10-29 14:44:26,377 - INFO - Script started with arguments: {'input': ['c:/Users/kunig/OneDrive/Documentos/Sidhu Project/Student Retention/Student-Retention/Datasets/sample_enrollments.csv'], 'output_dir': 'c:/Users/kunig/OneDrive/Documentos/Sidhu Project/Student Retention/Student-Retention/output', 'formats': ['csv', 'xlsx', 'xls'], 'min_year': 2020, 'max_year': 2022, 'exclude_transfers': False, 'debug': False}
+2025-10-29 14:44:26,378 - ERROR - Input path not found or invalid: c:/Users/kunig/OneDrive/Documentos/Sidhu Project/Student Retention/Student-Retention/Datasets/sample_enrollments.csv
+2025-10-29 14:44:26,379 - ERROR - No valid enrollment data was processed from inputs.
