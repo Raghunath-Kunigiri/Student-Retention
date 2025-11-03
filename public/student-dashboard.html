@@ -98,12 +98,6 @@
 
       // Load advisor information
       await loadMyAdvisor(studentId);
-      await loadAdvisors();
-      
-      // Setup department filter
-      document.getElementById('department-filter').addEventListener('change', async (e) => {
-        await loadAdvisors(e.target.value);
-      });
     });
 
     async function loadMyAdvisor(studentId) {
@@ -139,41 +133,6 @@
       }
     }
 
-    async function loadAdvisors(department = '') {
-      try {
-        let url = `${window.location.origin}/api/data/advisors`;
-        if (department) {
-          url = `${window.location.origin}/api/data/advisors/department/${encodeURIComponent(department)}`;
-        }
-        
-        const response = await fetch(url);
-        if (response.ok) {
-          const advisors = await response.json();
-          const advisorsList = document.getElementById('advisors-list');
-          
-          if (advisors.length === 0) {
-            advisorsList.innerHTML = '<div class="list-item">No advisors found</div>';
-            return;
-          }
-
-          advisorsList.innerHTML = advisors.map(advisor => `
-            <div class="list-item">
-              <span>${advisor.firstName} ${advisor.lastName}</span>
-              <span class="chip">${advisor.department}</span>
-            </div>
-            <div class="list-item">
-              <span>${advisor.email}</span>
-              <span class="chip">${advisor.phone}</span>
-            </div>
-          `).join('');
-        } else {
-          document.getElementById('advisors-list').innerHTML = '<div class="list-item">Error loading advisors</div>';
-        }
-      } catch (error) {
-        console.error('Error loading advisors:', error);
-        document.getElementById('advisors-list').innerHTML = '<div class="list-item">Error loading advisors</div>';
-      }
-    }
 
     async function submitHelpRequest(e){
       e.preventDefault();
@@ -299,20 +258,6 @@
       </div>
     </div>
 
-    <div class="card" style="margin-top: 20px;">
-      <h2>Available Advisors</h2>
-      <div style="margin-bottom: 15px;">
-        <select id="department-filter" style="width: 200px;">
-          <option value="">All Departments</option>
-          <option value="Computer Science">Computer Science</option>
-          <option value="Mathematics">Mathematics</option>
-          <option value="Engineering">Engineering</option>
-        </select>
-      </div>
-      <div id="advisors-list" class="list">
-        <div class="loading">Loading advisors...</div>
-      </div>
-    </div>
     </div>
   </div>
 </body>

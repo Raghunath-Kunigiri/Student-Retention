@@ -669,33 +669,6 @@
         });
       });
 
-      // Enhanced Search functionality
-      const searchStudentsBtn = document.getElementById('search-students');
-      if (searchStudentsBtn) {
-        searchStudentsBtn.addEventListener('click', () => {
-          performAdvancedSearch();
-        });
-      }
-
-      const clearSearchBtn = document.getElementById('clear-search');
-      if (clearSearchBtn) {
-        clearSearchBtn.addEventListener('click', () => {
-          clearAdvancedSearch();
-        });
-      }
-
-      // Search on Enter key for all search fields
-      const searchFields = ['search-student-id', 'search-name', 'search-email', 'search-phone', 'search-birth-year'];
-      searchFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-          field.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-              performAdvancedSearch();
-            }
-          });
-        }
-      });
 
       // Legacy search functionality (keeping for backward compatibility)
       const studentSearch = document.getElementById('student-search');
@@ -759,8 +732,7 @@
         'overview': () => switchToTab('overview'),
         'students': () => switchToTab('students'),
         'courses': () => switchToTab('courses'),
-        'analytics': () => switchToTab('analytics'),
-        'tools': () => switchToTab('tools')
+        'analytics': () => switchToTab('analytics')
       };
       
       // Add direct click handlers
@@ -831,135 +803,6 @@
       });
     }
 
-    // Advanced Search Functions
-    function performAdvancedSearch() {
-      const studentId = document.getElementById('search-student-id').value.trim();
-      const name = document.getElementById('search-name').value.trim();
-      const email = document.getElementById('search-email').value.trim();
-      const phone = document.getElementById('search-phone').value.trim();
-      const birthYear = document.getElementById('search-birth-year').value.trim();
-
-      // Check if any search criteria is provided
-      if (!studentId && !name && !email && !phone && !birthYear) {
-        alert('Please enter at least one search criteria.');
-        return;
-      }
-
-      // Filter students based on search criteria
-      const filteredStudents = students.filter(student => {
-        let matches = true;
-
-        // Search by Student ID
-        if (studentId && matches) {
-          const studentIdStr = (student.studentId || student.student_id || '').toString();
-          matches = studentIdStr.includes(studentId);
-        }
-
-        // Search by Name (first name or last name)
-        if (name && matches) {
-          const firstName = (student.firstName || student.first_name || '').toLowerCase();
-          const lastName = (student.lastName || student.last_name || '').toLowerCase();
-          const searchName = name.toLowerCase();
-          matches = firstName.includes(searchName) || lastName.includes(searchName);
-        }
-
-        // Search by Email
-        if (email && matches) {
-          const studentEmail = (student.email || '').toLowerCase();
-          matches = studentEmail.includes(email.toLowerCase());
-        }
-
-        // Search by Phone
-        if (phone && matches) {
-          const studentPhone = (student.phone || '').replace(/[^\d]/g, ''); // Remove non-digits
-          const searchPhone = phone.replace(/[^\d]/g, ''); // Remove non-digits
-          matches = studentPhone.includes(searchPhone);
-        }
-
-        // Search by Birth Year
-        if (birthYear && matches) {
-          const birthDate = student.birthDate || student.birth_date || '';
-          if (birthDate) {
-            const year = new Date(birthDate).getFullYear();
-            matches = year.toString().includes(birthYear);
-          } else {
-            matches = false;
-          }
-        }
-
-        return matches;
-      });
-
-      // Display search results
-      displaySearchResults(filteredStudents);
-    }
-
-    function clearAdvancedSearch() {
-      // Clear all search fields
-      document.getElementById('search-student-id').value = '';
-      document.getElementById('search-name').value = '';
-      document.getElementById('search-email').value = '';
-      document.getElementById('search-phone').value = '';
-      document.getElementById('search-birth-year').value = '';
-      
-      // Reset to show all students
-      updateStudentList();
-      document.getElementById('search-results-count').textContent = '';
-    }
-
-    function displaySearchResults(filteredStudents) {
-      const studentList = document.getElementById('student-list-detailed');
-      const resultsCount = document.getElementById('search-results-count');
-      
-      if (filteredStudents.length === 0) {
-        studentList.innerHTML = '<div class="no-results">No students found matching your search criteria.</div>';
-        resultsCount.textContent = '0 results found';
-        return;
-      }
-
-      // Display search results
-      studentList.innerHTML = '';
-      filteredStudents.forEach(student => {
-        const gpa = student.academic?.gpa || 0;
-        const credits = student.academic?.creditsEarned || 0;
-        const absences = student.academic?.attendanceAbsences || 0;
-        
-        let riskLevel = 'success';
-        let riskText = 'On Track';
-        
-        if (gpa < 3.1) {
-          riskLevel = 'danger';
-          riskText = 'At Risk';
-        }
-        
-        const studentItem = document.createElement('div');
-        studentItem.className = 'list-item';
-        studentItem.innerHTML = `
-          <div class="student-info">
-            <div class="student-name">${student.firstName || student.first_name} ${student.lastName || student.last_name}</div>
-            <div class="student-details">
-              ID: ${student.studentId || student.student_id} • ${student.major} • ${student.year} • 
-              GPA: ${gpa.toFixed(2)} • Credits: ${credits} • Absences: ${absences}
-            </div>
-            <div class="student-contact">
-              📧 ${student.email} • 📞 ${student.phone}
-            </div>
-            <div class="student-advisor">
-              Advisor: ${student.assignedAdvisor ? `${student.assignedAdvisor.firstName} ${student.assignedAdvisor.lastName}` : 'Not Assigned'}
-            </div>
-            <div class="student-status">
-              <span class="status-badge ${riskLevel}">${riskText}</span>
-            </div>
-          </div>
-          <div class="student-actions">
-            <button class="btn secondary" onclick="openStudentModal(${JSON.stringify(student).replace(/"/g, '&quot;')})">View Details</button>
-          </div>
-        `;
-        studentList.appendChild(studentItem);
-      });
-
-      resultsCount.textContent = `${filteredStudents.length} result${filteredStudents.length !== 1 ? 's' : ''} found`;
-    }
 
     function openStudentModal(student) {
       document.getElementById('modal-student-name').textContent = `${student.firstName || student.first_name} ${student.lastName || student.last_name}`;
@@ -1302,7 +1145,6 @@
       <button class="nav-tab" data-tab="students">👥 Students</button>
       <button class="nav-tab" data-tab="courses">📚 Courses</button>
       <button class="nav-tab" data-tab="analytics">📈 Analytics</button>
-      <button class="nav-tab" data-tab="tools">🛠️ Tools</button>
     </div>
 
     <!-- Overview Tab -->
@@ -1345,7 +1187,7 @@
     <!-- Students Tab -->
     <div id="students" class="tab-content">
       <div class="card">
-        <h2><span class="card-icon">👥</span>Student Management</h2>
+        <h2><span class="card-icon">👥</span>Students</h2>
         
         <!-- Advanced Filters -->
         <div class="filters-section" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
@@ -1413,40 +1255,6 @@
           </div>
         </div>
 
-        <!-- Enhanced Search Section -->
-        <div class="search-section" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
-          <h3 style="margin-bottom: 15px; color: #374151; font-size: 16px;">🔍 Advanced Student Search</h3>
-          
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
-            <div class="search-group">
-              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Student ID:</label>
-              <input type="text" id="search-student-id" placeholder="Enter Student ID" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-            </div>
-            <div class="search-group">
-              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Name:</label>
-              <input type="text" id="search-name" placeholder="First or Last Name" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-            </div>
-            <div class="search-group">
-              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Email:</label>
-              <input type="email" id="search-email" placeholder="Email Address" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-            </div>
-            <div class="search-group">
-              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Phone:</label>
-              <input type="text" id="search-phone" placeholder="Phone Number" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-            </div>
-            <div class="search-group">
-              <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #374151;">Year of Birth:</label>
-              <input type="number" id="search-birth-year" placeholder="Birth Year (e.g., 2000)" min="1990" max="2010" style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px;">
-            </div>
-          </div>
-          
-          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <button id="search-students" class="btn primary" style="padding: 8px 16px;">🔍 Search Students</button>
-            <button id="clear-search" class="btn secondary" style="padding: 8px 16px;">Clear Search</button>
-            <button class="btn primary" onclick="openAddStudentModal()" style="padding: 8px 16px;">➕ Add Student</button>
-            <span id="search-results-count" style="color: #6b7280; font-size: 14px;"></span>
-          </div>
-        </div>
         <div class="list" id="student-list-detailed">
           <!-- Detailed student list will be loaded here -->
         </div>
@@ -1488,26 +1296,6 @@
       </div>
     </div>
 
-    <!-- Tools Tab -->
-    <div id="tools" class="tab-content">
-      <div class="grid-3">
-        <div class="card">
-          <h2><span class="card-icon">📧</span>Communication</h2>
-          <p>Send emails and notifications to students.</p>
-          <button class="btn primary">Send Message</button>
-        </div>
-        <div class="card">
-          <h2><span class="card-icon">📅</span>Schedule Meetings</h2>
-          <p>Schedule and manage student meetings.</p>
-          <button class="btn primary">Schedule</button>
-        </div>
-        <div class="card">
-          <h2><span class="card-icon">📋</span>Notes & Records</h2>
-          <p>Manage student notes and academic records.</p>
-          <button class="btn primary">Manage Records</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Student Detail Modal -->

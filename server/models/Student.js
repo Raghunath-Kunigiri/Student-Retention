@@ -5,8 +5,7 @@ const studentSchema = new mongoose.Schema({
   studentId: {
     type: Number,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   firstName: {
     type: String,

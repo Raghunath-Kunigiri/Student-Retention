@@ -5,8 +5,7 @@ const advisorSchema = new mongoose.Schema({
   advisorId: {
     type: Number,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   firstName: {
     type: String,
