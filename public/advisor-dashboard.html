@@ -1185,6 +1185,7 @@
       </div>
       <a class="signout" href="index.html" onclick="localStorage.clear()">Sign out</a>
     </div>
+    
 
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
@@ -1192,6 +1193,43 @@
       <!-- <button class="nav-tab" data-tab="students">👥 Students</button> -->
       <button class="nav-tab" data-tab="courses">📚 Courses</button>
       <button class="nav-tab" data-tab="analytics">📈 Analytics</button>
+    </div>
+
+    
+
+    <!-- Courses Tab -->
+    <div id="courses" class="tab-content">
+      <div class="card">
+        <h2><span class="card-icon">📚</span>Course Management</h2>
+        <div class="actions">
+          <button class="btn primary" onclick="openCourseModal()">Add Course</button>
+        </div>
+        <div class="list" id="course-list">
+          <!-- Courses will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div id="analytics" class="tab-content">
+      <div class="grid-3">
+        <div class="card">
+          <h2><span class="card-icon">📊</span>Retention Rates</h2>
+          <p>Track student retention by semester and program.</p>
+          <div style="height:220px"><canvas id="retentionChart"></canvas></div>
+          <div style="margin-top:8px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
+        </div>
+        <div class="card">
+          <h2><span class="card-icon">📈</span>Performance Trends</h2>
+          <p>GPA distribution across bands.</p>
+          <div style="height:220px"><canvas id="performanceChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h2><span class="card-icon">🎯</span>Risk Analysis</h2>
+          <p>At-risk students by major.</p>
+          <div style="height:220px"><canvas id="riskChart"></canvas></div>
+        </div>
+      </div>
     </div>
 
     <!-- Overview Tab -->
@@ -1215,6 +1253,13 @@
         </div>
     </div>
 
+    <div class="card">
+      <h2><span class="card-icon">🔔</span>Recent Activity</h2>
+      <div class="list" id="activity-list">
+        <!-- Activity will be loaded here -->
+      </div>
+    </div>
+
     <div class="grid">
         <!--
         <div class="card">
@@ -1223,12 +1268,7 @@
           </div>
         </div>
         -->
-        <div class="card">
-          <h2><span class="card-icon">🔔</span>Recent Activity</h2>
-          <div class="list" id="activity-list">
-            <!-- Activity will be loaded here -->
-          </div>
-        </div>
+        
       </div>
     </div>
 
@@ -1312,40 +1352,7 @@
     </div>
     <!-- Students Tab commented out above -->
 
-    <!-- Courses Tab -->
-    <div id="courses" class="tab-content">
-      <div class="card">
-        <h2><span class="card-icon">📚</span>Course Management</h2>
-        <div class="actions">
-          <button class="btn primary" onclick="openCourseModal()">Add Course</button>
-        </div>
-        <div class="list" id="course-list">
-          <!-- Courses will be loaded here -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Analytics Tab -->
-    <div id="analytics" class="tab-content">
-      <div class="grid-3">
-        <div class="card">
-          <h2><span class="card-icon">📊</span>Retention Rates</h2>
-          <p>Track student retention by semester and program.</p>
-          <div style="height:220px"><canvas id="retentionChart"></canvas></div>
-          <div style="margin-top:8px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
-        </div>
-        <div class="card">
-          <h2><span class="card-icon">📈</span>Performance Trends</h2>
-          <p>GPA distribution across bands.</p>
-          <div style="height:220px"><canvas id="performanceChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h2><span class="card-icon">🎯</span>Risk Analysis</h2>
-          <p>At-risk students by major.</p>
-          <div style="height:220px"><canvas id="riskChart"></canvas></div>
-        </div>
-      </div>
-    </div>
+    
 
   </div>
 
