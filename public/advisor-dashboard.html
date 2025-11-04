@@ -326,6 +326,7 @@
       .search-bar select { width: 100%; }
     }
   </style>
+  <link rel="stylesheet" href="styles/theme.css" />
   <script type="module" src="../src/index.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
@@ -577,7 +578,7 @@
         // Calculate risk level based on GPA and attendance
         const gpa = student.academic?.gpa || 0;
         const absences = student.academic?.attendanceAbsences || 0;
-        const credits = student.academic?.creditsEarned || 0;
+        const credits = Math.min(student.academic?.creditsEarned || 0, 33); // Cap at 33
         
         let riskLevel = 'success';
         let riskText = 'On Track';
@@ -1078,7 +1079,7 @@
       atRiskStudents.forEach(student => {
         const gpa = student.academic?.gpa || 0;
         const absences = student.academic?.attendanceAbsences || 0;
-        const credits = student.academic?.creditsEarned || 0;
+        const credits = Math.min(student.academic?.creditsEarned || 0, 33); // Cap at 33
         
         const studentItem = document.createElement('div');
         studentItem.className = 'list-item';

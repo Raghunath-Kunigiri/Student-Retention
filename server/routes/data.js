@@ -170,7 +170,7 @@ router.get('/csv-students', async (req, res) => {
         advisorId: student.advisor_id,
         academic: academic ? {
           gpa: parseFloat(academic.gpa),
-          creditsEarned: parseInt(academic.credits_earned),
+          creditsEarned: Math.min(parseInt(academic.credits_earned) || 0, 33), // Cap at 33
           attendanceAbsences: parseInt(academic.attendance_absences)
         } : null
       };

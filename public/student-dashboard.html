@@ -67,6 +67,7 @@
 
     @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2,1fr); } }
   </style>
+  <link rel="stylesheet" href="styles/theme.css" />
   <script type="module" src="../src/index.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
@@ -90,8 +91,21 @@
         } catch(e) {}
       }
 
-      const initials = (fullName || studentId || 'S').split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-      const displayName = fullName || initials || ('Student ' + studentId);
+      // Clean up fullName to remove "Not provided"
+      if (fullName) {
+        fullName = fullName.replace(/Not provided/gi, '').trim();
+        // Remove extra spaces
+        fullName = fullName.replace(/\s+/g, ' ');
+      }
+      
+      const initials = (fullName || studentId || 'S').split(' ').filter(w => w && w.toLowerCase() !== 'not' && w.toLowerCase() !== 'provided').map(w => w[0]).join('').slice(0,2).toUpperCase();
+      let displayName = fullName || initials || ('Student ' + studentId);
+      // Remove "Not provided" from displayName if it exists
+      displayName = displayName.replace(/Not provided/gi, '').trim();
+      // If displayName is empty after cleaning, use initials or student ID
+      if (!displayName || displayName === '') {
+        displayName = initials || ('Student ' + studentId);
+      }
       document.getElementById('welcome').textContent = `Welcome, Student : ${displayName}`;
       document.getElementById('student-id-line').textContent = studentId ? `ID: ${studentId}` : '';
       document.getElementById('avatar').textContent = initials || 'S';
@@ -188,15 +202,6 @@
             <div class="metric"><div class="label">Credits</div><div class="value">72/120</div></div>
             <div class="metric"><div class="label">Attendance</div><div class="value">95%</div></div>
             <div class="metric"><div class="label">Alerts</div><div class="value">0</div></div>
-          </div>
-        </div>
-
-        <div class="card" style="margin-bottom: 20px;">
-          <h2>Upcoming Classes</h2>
-          <div class="list">
-            <div class="list-item"><span>CS 301 - Algorithms</span><span class="chip">10:30 AM</span></div>
-            <div class="list-item"><span>STAT 210 - Probability</span><span class="chip">12:00 PM</span></div>
-            <div class="list-item"><span>ENG 102 - Composition</span><span class="chip">2:00 PM</span></div>
           </div>
         </div>
 

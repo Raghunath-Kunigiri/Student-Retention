@@ -175,7 +175,6 @@
           <p>Track your progress, manage goals, schedule with advisors, and get timely updates.</p>
           <ul class="hero-list">
             <li>📊 Personalized insights and GPA tracking</li>
-            <li>🗓️ Appointments and class schedule</li>
             <li>💬 Help center for housing, academics, and more</li>
           </ul>
         </div>
@@ -328,10 +327,15 @@
         const result = await response.json();
 
         if (result.success) {
+          // Clean up fullName to remove "Not provided"
+          let fullName = result.user.fullName || '';
+          fullName = fullName.replace(/Not provided/gi, '').trim();
+          fullName = fullName.replace(/\s+/g, ' ');
+          
           // Store session data
           localStorage.setItem('studentSessionToken', result.sessionToken);
           localStorage.setItem('studentId', result.user.studentId);
-          localStorage.setItem('fullName', result.user.fullName);
+          localStorage.setItem('fullName', fullName);
           localStorage.setItem('email', result.user.email);
           localStorage.setItem('major', result.user.major);
           localStorage.setItem('year', result.user.year);

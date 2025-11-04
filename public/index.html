@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../src/styles/variables.css" />
   <link rel="stylesheet" href="../src/styles/cursor.css" />
   <link rel="stylesheet" href="../src/styles/interactions.css" />
+  <link rel="stylesheet" href="styles/theme.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -123,7 +124,6 @@
     <div class="topbar">
       <div class="brand">Horizon State University</div>
       <nav>
-        <a href="#">Site home</a>
         <a href="advisor-login.html">Staff</a>
         <a href="student-login.html">Login</a>
       </nav>
@@ -135,29 +135,65 @@
           <h1>Welcome to Horizon State University!</h1>
           <p>We support students and advisors with tools to track progress, manage cases, and coordinate appointments. Explore key resources below or sign in to your portal.</p>
         </div>
-        <div class="cta">
-          <a class="btn primary" href="student-login.html">Student Login</a>
-          <a class="btn" href="advisor-login.html">Advisor Login</a>
-        </div>
-
-        <section class="links" style="margin-top:18px;">
-          <h2>Site links</h2>
-          <div class="link-grid">
-            <a href="#">New Students</a>
-            <a href="#">Maintaining Your Status</a>
-            <a href="#">Employment Options</a>
-            <a href="#">Travel Information</a>
-            <a href="#">Appointments</a>
-            <a href="#">Help Center</a>
+        <div class="login-tabs-container" style="margin-top: 24px;">
+          <div class="login-tabs-header" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+            <button class="login-tab-btn active" onclick="switchLoginTab('student')" style="padding: 12px 20px; border: none; background: transparent; font-weight: 600; color: var(--primary); cursor: pointer; border-bottom: 2px solid var(--primary); margin-bottom: -2px;">Student Login</button>
+            <button class="login-tab-btn" onclick="switchLoginTab('advisor')" style="padding: 12px 20px; border: none; background: transparent; font-weight: 600; color: #6b7280; cursor: pointer;">Advisor Login</button>
           </div>
-        </section>
+          
+          <!-- Student Login Form -->
+          <div id="student-login-section" class="login-section active" style="display: block;">
+            <form id="student-login-form-index" style="display: grid; gap: 16px;">
+              <div style="display: grid; gap: 8px;">
+                <label style="font-size: 14px; font-weight: 600; color: #374151;">Student ID</label>
+                <input type="text" id="student-id-index" name="studentId" placeholder="Enter your student ID" required style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px;">
+              </div>
+              <div style="display: grid; gap: 8px;">
+                <label style="font-size: 14px; font-weight: 600; color: #374151;">Password</label>
+                <input type="password" id="password-student-index" name="password" placeholder="Enter your password" required style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px;">
+              </div>
+              <button type="submit" style="padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px;">Sign In</button>
+            </form>
+            <div style="margin-top: 16px; text-align: center;">
+              <a href="student-login.html" style="color: var(--primary); text-decoration: none; font-size: 14px;">Need to create an account? Sign up here</a>
+            </div>
+          </div>
+          
+          <!-- Advisor Login Form -->
+          <div id="advisor-login-section" class="login-section" style="display: none;">
+            <form id="advisor-login-form-index" style="display: grid; gap: 16px;">
+              <div style="display: grid; gap: 8px;">
+                <label style="font-size: 14px; font-weight: 600; color: #374151;">Email Address</label>
+                <input type="email" id="advisor-email-index" name="email" placeholder="Enter your email" required style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px;">
+              </div>
+              <div style="display: grid; gap: 8px;">
+                <label style="font-size: 14px; font-weight: 600; color: #374151;">Password</label>
+                <input type="password" id="password-advisor-index" name="password" placeholder="Enter your password" required style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px;">
+              </div>
+              <div style="display: grid; gap: 8px;">
+                <label style="font-size: 14px; font-weight: 600; color: #374151;">Department</label>
+                <select id="department-index" name="department" required style="padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white;">
+                  <option value="">Select Department</option>
+                  <option value="computer-science">Computer Science</option>
+                  <option value="engineering">Engineering</option>
+                  <option value="business">Business</option>
+                  <option value="medicine">Medicine</option>
+                  <option value="arts">Arts & Humanities</option>
+                </select>
+              </div>
+              <button type="submit" style="padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 8px;">Sign In</button>
+            </form>
+            <div style="margin-top: 16px; text-align: center;">
+              <a href="advisor-login.html" style="color: var(--primary); text-decoration: none; font-size: 14px;">Need to create an account? Sign up here</a>
+            </div>
+          </div>
+        </div>
+        
+        <div id="error-message-index" style="display: none; padding: 12px; background: #fee2e2; color: #991b1b; border-radius: 8px; margin-top: 16px; font-size: 14px;"></div>
+        <div id="success-message-index" style="display: none; padding: 12px; background: #d1fae5; color: #166534; border-radius: 8px; margin-top: 16px; font-size: 14px;"></div>
       </main>
 
       <aside class="aside">
-        <div class="panel">
-          <h3>Announcements</h3>
-          <div class="ann">Loading...</div>
-        </div>
         <div class="panel">
           <h3>Office Information</h3>
           <div style="color:#334155; line-height:1.6;">
@@ -170,6 +206,125 @@
   </div>
 
   <script type="module" src="../src/index.js"></script>
+  <script>
+    function switchLoginTab(type) {
+      // Update tab buttons
+      const buttons = document.querySelectorAll('.login-tab-btn');
+      buttons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.color = '#6b7280';
+        btn.style.borderBottom = 'none';
+      });
+      
+      const activeBtn = type === 'student' ? buttons[0] : buttons[1];
+      activeBtn.classList.add('active');
+      activeBtn.style.color = 'var(--primary)';
+      activeBtn.style.borderBottom = '2px solid var(--primary)';
+      
+      // Update sections
+      document.getElementById('student-login-section').style.display = type === 'student' ? 'block' : 'none';
+      document.getElementById('advisor-login-section').style.display = type === 'advisor' ? 'block' : 'none';
+      
+      // Clear messages
+      document.getElementById('error-message-index').style.display = 'none';
+      document.getElementById('success-message-index').style.display = 'none';
+    }
+    
+    // Student login form submission
+    document.getElementById('student-login-form-index').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const errorDiv = document.getElementById('error-message-index');
+      const successDiv = document.getElementById('success-message-index');
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+      
+      const studentId = document.getElementById('student-id-index').value;
+      const password = document.getElementById('password-student-index').value;
+      
+      try {
+        const response = await fetch(`${window.location.origin}/api/auth/student/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ studentId, password })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // Clean up fullName to remove "Not provided"
+          let fullName = result.user.fullName || '';
+          fullName = fullName.replace(/Not provided/gi, '').trim();
+          fullName = fullName.replace(/\s+/g, ' ');
+          
+          localStorage.setItem('studentSessionToken', result.sessionToken);
+          localStorage.setItem('studentId', result.user.studentId);
+          localStorage.setItem('fullName', fullName);
+          localStorage.setItem('email', result.user.email);
+          localStorage.setItem('major', result.user.major);
+          localStorage.setItem('year', result.user.year);
+          
+          successDiv.textContent = 'Login successful! Redirecting...';
+          successDiv.style.display = 'block';
+          
+          setTimeout(() => {
+            window.location.href = 'student-dashboard.html';
+          }, 1000);
+        } else {
+          errorDiv.textContent = result.error || 'Login failed. Please check your credentials.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+    });
+    
+    // Advisor login form submission
+    document.getElementById('advisor-login-form-index').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const errorDiv = document.getElementById('error-message-index');
+      const successDiv = document.getElementById('success-message-index');
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+      
+      const email = document.getElementById('advisor-email-index').value;
+      const password = document.getElementById('password-advisor-index').value;
+      const department = document.getElementById('department-index').value;
+      
+      try {
+        const response = await fetch(`${window.location.origin}/api/auth/advisor/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, department })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          localStorage.setItem('advisorSessionToken', result.sessionToken);
+          localStorage.setItem('advisorFullName', result.user.fullName);
+          localStorage.setItem('advisorEmail', result.user.email);
+          localStorage.setItem('advisorId', result.user.advisorId);
+          localStorage.setItem('department', result.user.department);
+          
+          successDiv.textContent = 'Login successful! Redirecting...';
+          successDiv.style.display = 'block';
+          
+          setTimeout(() => {
+            window.location.href = 'advisor-dashboard.html';
+          }, 1000);
+        } else {
+          errorDiv.textContent = result.error || 'Login failed. Please check your credentials.';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+    });
+  </script>
 </body>
 </html>
 

@@ -1,0 +1,262 @@
+/* Theme inspired by the Student Retention Dashboard design */
+/* Reference: https://www.figma.com/make/dVDLzR894f9wVlqk7ykD7m/Student-Retention-Dashboard?node-id=0-1&p=f&t=6TvuqJhG3HcaXA9Z-0 */
+
+:root{
+  /* Background & Base Colors */
+  --bg: #F8F9FA;
+  --card: #FFFFFF;
+  --surface: #FFFFFF;
+  
+  /* Text Colors */
+  --text: #111827;
+  --text-secondary: #4B5563;
+  --muted: #9CA3AF;
+  --text-light: #6B7280;
+  
+  /* Border & Dividers */
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  
+  /* Primary Brand Colors - Soft Blue */
+  --primary: #2563EB;
+  --primary-light: #3B82F6;
+  --primary-dark: #1E40AF;
+  --primary-bg: #EFF6FF;
+  
+  /* Success - Soft Green */
+  --success: #059669;
+  --success-light: #10B981;
+  --success-bg: #D1FAE5;
+  
+  /* Warning - Soft Amber */
+  --warning: #D97706;
+  --warning-light: #F59E0B;
+  --warning-bg: #FEF3C7;
+  
+  /* Danger - Soft Red */
+  --danger: #DC2626;
+  --danger-light: #EF4444;
+  --danger-bg: #FEE2E2;
+  
+  /* Accent Colors */
+  --accent-purple: #7C3AED;
+  --accent-teal: #14B8A6;
+  --accent-indigo: #6366F1;
+}
+
+html,body{ 
+  background: var(--bg); 
+  color: var(--text); 
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Topbar / Brand */
+.topbar{ 
+  background: var(--primary) !important; 
+  border-bottom: 1px solid var(--border-light); 
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  color: #FFFFFF !important;
+}
+.topbar .brand{ 
+  font-weight: 700; 
+  color: #FFFFFF !important; 
+  letter-spacing: -0.02em;
+}
+.topbar nav{ 
+  color: #FFFFFF !important;
+}
+.topbar nav a{ 
+  color: #FFFFFF !important; 
+  font-weight: 500;
+  transition: opacity 0.2s ease;
+}
+.topbar nav a:hover{ 
+  color: #FFFFFF !important; 
+  opacity: 0.85;
+}
+
+/* Cards */
+.card{ 
+  background: var(--card); 
+  border: 1px solid var(--border-light); 
+  border-radius: 12px; 
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1); 
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card:hover{
+  box-shadow: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+  border-color: var(--border);
+}
+.card h2{ 
+  color: var(--text); 
+  font-weight: 700; 
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+.card .card-icon{ 
+  filter: grayscale(0); 
+  opacity: 0.9;
+}
+
+/* Stats grid */
+.stats-grid{ 
+  gap: 20px; 
+}
+.stat-card{ 
+  background: var(--card); 
+  border: 1px solid var(--border-light); 
+  border-radius: 12px; 
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+}
+.stat-number{ 
+  font-weight: 800; 
+  color: var(--text); 
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+.stat-label{ 
+  color: var(--text-secondary); 
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Buttons */
+.btn.primary{ 
+  background: var(--primary); 
+  border-color: var(--primary); 
+  color: #FFFFFF;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn.primary:hover{ 
+  background: var(--primary-dark); 
+  border-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+.btn.secondary{ 
+  background: var(--surface); 
+  color: var(--text-secondary); 
+  border: 1px solid var(--border); 
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.btn.secondary:hover{
+  background: var(--border-light);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Chips */
+.chip.success{ 
+  background: var(--success-bg); 
+  color: var(--success); 
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+.chip.warning{ 
+  background: var(--warning-bg); 
+  color: var(--warning); 
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+.chip.danger{ 
+  background: var(--danger-bg); 
+  color: var(--danger); 
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+/* Lists */
+.list .list-item{ 
+  border: 1px solid var(--border-light); 
+  border-radius: 10px; 
+  background: var(--surface);
+  transition: all 0.2s ease;
+}
+.list .list-item:hover{
+  border-color: var(--border);
+  background: var(--bg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.list .list-item + .list-item{ 
+  margin-top: 12px; 
+}
+
+/* Forms */
+input, select, textarea{ 
+  border: 1px solid var(--border); 
+  border-radius: 8px; 
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input:focus, select:focus, textarea:focus{
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-bg);
+}
+label{ 
+  color: var(--text-secondary); 
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* Charts wrappers */
+canvas{ 
+  background: transparent; 
+}
+
+/* Modals */
+.modal{ 
+  background: rgba(17, 24, 39, 0.5);
+  backdrop-filter: blur(4px);
+}
+.modal .modal-content{ 
+  border-radius: 16px; 
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+}
+
+/* Navigation Tabs */
+.nav-tabs .nav-tab{
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+}
+.nav-tabs .nav-tab:hover{
+  color: var(--primary);
+  background: var(--primary-bg);
+}
+.nav-tabs .nav-tab.active{
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: transparent;
+}
+
+/* Dashboard Header */
+.dashboard .header{
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Utilities */
+.muted{ color: var(--muted); }
+.text-secondary{ color: var(--text-secondary); }
+.accent-primary{ color: var(--primary); }
+.accent-success{ color: var(--success); }
+.accent-warning{ color: var(--warning); }
+.accent-danger{ color: var(--danger); }
+
+
