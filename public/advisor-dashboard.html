@@ -345,8 +345,8 @@
         await loadAdvisorData();
         console.log('Advisor data loaded');
         
-        await loadStudents();
-        console.log('Students loaded:', students.length);
+        // await loadStudents();
+        // console.log('Students loaded:', students.length);
         
         await loadCourses();
         console.log('Courses loaded:', courses.length);
@@ -382,6 +382,7 @@
     }
 
     async function loadStudents() {
+      /*
       try {
         // Fetch students from CSV files
         const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
@@ -397,9 +398,11 @@
         console.error('Error loading students:', error);
         students = [];
       }
+      */
     }
 
     async function loadFilteredStudents() {
+      /*
       try {
         const sortBy = document.getElementById('sort-by').value;
         const sortOrder = document.getElementById('sort-order').value;
@@ -430,13 +433,16 @@
       } catch (error) {
         console.error('Error loading filtered students:', error);
       }
+      */
     }
 
     function updateFilterResults() {
+      /*
       const resultsSpan = document.getElementById('filter-results');
       if (resultsSpan) {
         resultsSpan.textContent = `Showing ${students.length} students`;
       }
+      */
     }
 
     async function loadCourses() {
@@ -477,8 +483,32 @@
 
     function updateHeader() {
       if (currentAdvisor) {
-        const initials = `${currentAdvisor.firstName[0]}${currentAdvisor.lastName[0]}`.toUpperCase();
-        document.getElementById('welcome').textContent = `Welcome, ${currentAdvisor.firstName} ${currentAdvisor.lastName}`;
+        // Clean up firstName and lastName to remove "Not provided"
+        let firstName = (currentAdvisor.firstName || '').replace(/Not provided/gi, '').trim();
+        let lastName = (currentAdvisor.lastName || '').replace(/Not provided/gi, '').trim();
+        
+        // Remove extra spaces
+        firstName = firstName.replace(/\s+/g, ' ');
+        lastName = lastName.replace(/\s+/g, ' ');
+        
+        // Use cleaned names for initials
+        const firstInitial = firstName && firstName[0] ? firstName[0].toUpperCase() : 'A';
+        const lastInitial = lastName && lastName[0] ? lastName[0].toUpperCase() : 'A';
+        const initials = `${firstInitial}${lastInitial}`;
+        
+        // Build display name
+        let displayName = '';
+        if (firstName && lastName) {
+          displayName = `${firstName} ${lastName}`;
+        } else if (firstName) {
+          displayName = firstName;
+        } else if (lastName) {
+          displayName = lastName;
+        } else {
+          displayName = 'Advisor';
+        }
+        
+        document.getElementById('welcome').textContent = `Welcome, ${displayName}`;
         document.getElementById('advisor-id-line').textContent = `ID: ${currentAdvisor.advisorId} • ${currentAdvisor.department}`;
         document.getElementById('avatar').textContent = initials;
       }
@@ -486,7 +516,7 @@
 
     async function updateDashboard() {
       await updateStats();
-      updateStudentList();
+      // updateStudentList();
       updateRecentActivity();
       updateCourseList();
       // Render charts if analytics tab already visible
@@ -558,6 +588,7 @@
     }
 
     function updateStudentList() {
+      /*
       // Ensure students is an array
       if (!Array.isArray(students)) {
         console.warn('Students data is not an array:', students);
@@ -615,6 +646,7 @@
           studentListDetailed.appendChild(studentItem);
         }
       });
+      */
     }
 
     function updateRecentActivity() {
@@ -672,6 +704,7 @@
 
 
       // Legacy search functionality (keeping for backward compatibility)
+      /*
       const studentSearch = document.getElementById('student-search');
       if (studentSearch) {
         studentSearch.addEventListener('input', (e) => {
@@ -718,6 +751,7 @@
           });
         }
       });
+      */
 
       // Modal close
       document.querySelectorAll('.modal-close').forEach(btn => {
@@ -731,7 +765,7 @@
       // Fallback: Direct click handlers for each tab
       const tabButtons = {
         'overview': () => switchToTab('overview'),
-        'students': () => switchToTab('students'),
+        // 'students': () => switchToTab('students'),
         'courses': () => switchToTab('courses'),
         'analytics': () => switchToTab('analytics')
       };
@@ -748,10 +782,12 @@
       });
 
       // At-risk students card click handler
+      /*
       const atRiskCard = document.getElementById('at-risk-card');
       if (atRiskCard) {
         atRiskCard.addEventListener('click', openAtRiskModal);
       }
+      */
     }
     
     function switchToTab(tabId) {
@@ -775,6 +811,7 @@
     }
 
     function updateStudentListWithData(studentData) {
+      /*
       // Ensure studentData is an array
       if (!Array.isArray(studentData)) {
         console.warn('Student data is not an array:', studentData);
@@ -802,10 +839,12 @@
         studentItem.onclick = () => openStudentModal(student);
         studentList.appendChild(studentItem);
       });
+      */
     }
 
 
     function openStudentModal(student) {
+      /*
       document.getElementById('modal-student-name').textContent = `${student.firstName || student.first_name} ${student.lastName || student.last_name}`;
       document.getElementById('modal-student-id').textContent = student.studentId || student.student_id;
       document.getElementById('modal-student-major').textContent = student.major;
@@ -814,6 +853,7 @@
       document.getElementById('modal-student-status').textContent = student.enrollmentStatus;
       
       document.getElementById('student-modal').classList.add('active');
+      */
     }
 
     function openAddStudentModal() {
@@ -902,9 +942,11 @@
     }
 
     function openAtRiskModal() {
+      /*
       const modal = document.getElementById('at-risk-modal');
       modal.classList.add('active');
       loadAtRiskStudents();
+      */
     }
 
     // ---------- Analytics Charts ----------
@@ -1061,6 +1103,7 @@
     }
 
     function loadAtRiskStudents() {
+      /*
       const atRiskList = document.getElementById('at-risk-list');
       atRiskList.innerHTML = '<div class="loading">Loading at-risk students...</div>';
       
@@ -1102,9 +1145,11 @@
         studentItem.onclick = () => openStudentModal(student);
         atRiskList.appendChild(studentItem);
       });
+      */
     }
 
     function addStudent() {
+      /*
       const form = document.getElementById('add-student-form');
       const formData = new FormData(form);
       
@@ -1112,6 +1157,7 @@
       alert('Student added successfully!');
       document.getElementById('add-student-modal').classList.remove('active');
       form.reset();
+      */
     }
 
     function addCourse() {
@@ -1143,7 +1189,7 @@
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="overview">📊 Overview</button>
-      <button class="nav-tab" data-tab="students">👥 Students</button>
+      <!-- <button class="nav-tab" data-tab="students">👥 Students</button> -->
       <button class="nav-tab" data-tab="courses">📚 Courses</button>
       <button class="nav-tab" data-tab="analytics">📈 Analytics</button>
     </div>
@@ -1170,12 +1216,13 @@
     </div>
 
     <div class="grid">
+        <!--
         <div class="card">
           <h2><span class="card-icon">👥</span>My Students</h2>
           <div class="list" id="student-list">
-            <!-- Students will be loaded here -->
           </div>
         </div>
+        -->
         <div class="card">
           <h2><span class="card-icon">🔔</span>Recent Activity</h2>
           <div class="list" id="activity-list">
@@ -1186,11 +1233,13 @@
     </div>
 
     <!-- Students Tab -->
+    <!--
     <div id="students" class="tab-content">
       <div class="card">
         <h2><span class="card-icon">👥</span>Students</h2>
         
         <!-- Advanced Filters -->
+        <!--
         <div class="filters-section" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
             <div class="filter-group">
@@ -1261,6 +1310,7 @@
         </div>
       </div>
     </div>
+    -->
 
     <!-- Courses Tab -->
     <div id="courses" class="tab-content">
@@ -1300,6 +1350,7 @@
   </div>
 
   <!-- Student Detail Modal -->
+  <!--
   <div id="student-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -1348,62 +1399,65 @@
       </div>
     </div>
   </div>
+  -->
 
-  <!-- Add Student Modal -->
-  <div id="add-student-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Add New Student</h2>
-        <button class="modal-close">&times;</button>
-      </div>
-      <form id="add-student-form" class="form">
-        <div class="form-row">
-          <div>
-            <label>First Name:</label>
-            <input type="text" name="firstName" required>
-          </div>
-          <div>
-            <label>Last Name:</label>
-            <input type="text" name="lastName" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div>
-            <label>Student ID:</label>
-            <input type="number" name="studentId" required>
-          </div>
-          <div>
-            <label>Email:</label>
-            <input type="email" name="email" required>
-          </div>
-        </div>
-        <div class="form-row">
-          <div>
-            <label>Major:</label>
-            <select name="major" required>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Engineering">Engineering</option>
-              <option value="Business">Business</option>
-              <option value="Mathematics">Mathematics</option>
-            </select>
-          </div>
-          <div>
-            <label>Year:</label>
-            <select name="year" required>
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
-            </select>
-          </div>
-        </div>
-        <div class="actions">
-          <button type="button" class="btn secondary" onclick="document.getElementById('add-student-modal').classList.remove('active')">Cancel</button>
-          <button type="button" class="btn primary" onclick="addStudent()">Add Student</button>
-        </div>
-      </form>
-    </div>
-  </div>
+     <!-- Add Student Modal -->
+   <!--
+   <div id="add-student-modal" class="modal">
+     <div class="modal-content">
+       <div class="modal-header">
+         <h2>Add New Student</h2>
+         <button class="modal-close">&times;</button>
+       </div>
+       <form id="add-student-form" class="form">
+         <div class="form-row">
+           <div>
+             <label>First Name:</label>
+             <input type="text" name="firstName" required>
+           </div>
+           <div>
+             <label>Last Name:</label>
+             <input type="text" name="lastName" required>
+           </div>
+         </div>
+         <div class="form-row">
+           <div>
+             <label>Student ID:</label>
+             <input type="number" name="studentId" required>
+           </div>
+           <div>
+             <label>Email:</label>
+             <input type="email" name="email" required>
+           </div>
+         </div>
+         <div class="form-row">
+           <div>
+             <label>Major:</label>
+             <select name="major" required>
+               <option value="Computer Science">Computer Science</option>
+               <option value="Engineering">Engineering</option>
+               <option value="Business">Business</option>
+               <option value="Mathematics">Mathematics</option>
+             </select>
+           </div>
+           <div>
+             <label>Year:</label>
+             <select name="year" required>
+               <option value="2024">2024</option>
+               <option value="2025">2025</option>
+               <option value="2026">2026</option>
+               <option value="2027">2027</option>
+             </select>
+           </div>
+         </div>
+         <div class="actions">
+           <button type="button" class="btn secondary" onclick="document.getElementById('add-student-modal').classList.remove('active')">Cancel</button>
+           <button type="button" class="btn primary" onclick="addStudent()">Add Student</button>
+         </div>
+       </form>
+     </div>
+   </div>
+   -->
 
   <!-- Add Course Modal -->
   <div id="course-modal" class="modal">
@@ -1487,6 +1541,7 @@
   </div>
 
   <!-- At Risk Students Modal -->
+  <!--
   <div id="at-risk-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -1498,6 +1553,7 @@
       </div>
     </div>
   </div>
+  -->
 </body>
 </html>
 
