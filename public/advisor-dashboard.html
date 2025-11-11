@@ -342,6 +342,9 @@
       console.log('DOM Content Loaded - Initializing dashboard...');
       
       try {
+        // Load student statuses from localStorage
+        loadStudentStatuses();
+        
         await loadAdvisorData();
         console.log('Advisor data loaded');
         
@@ -516,11 +519,15 @@
 
     async function updateDashboard() {
       await updateStats();
-      // updateStudentList();
+      await loadAndDisplayStudents();
       updateRecentActivity();
       updateCourseList();
       // Render charts if analytics tab already visible
       maybeRenderAnalyticsCharts();
+      // Load status students if tab is active
+      if (document.getElementById('status-students')?.classList.contains('active')) {
+        await loadStatusStudents();
+      }
     }
     
     function updateCourseList() {
@@ -587,37 +594,52 @@
       }
     }
 
-    function updateStudentList() {
-      /*
-      // Ensure students is an array
-      if (!Array.isArray(students)) {
-        console.warn('Students data is not an array:', students);
-        students = [];
+    // Function to calculate risk level based on GPA
+    function calculateRiskLevel(gpa) {
+      if (gpa >= 0 && gpa <= 2.9) {
+        return { level: 'danger', text: 'High Risk' };
+      } else if (gpa >= 3.0 && gpa <= 3.2) {
+        return { level: 'warning', text: 'Medium Risk' };
+      } else if (gpa > 3.2) {
+        return { level: 'success', text: 'No Risk' };
+      } else {
+        // Default for invalid GPA
+        return { level: 'info', text: 'Unknown' };
+      }
+    }
+
+    async function loadAndDisplayStudents() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (response.ok) {
+          const studentData = await response.json();
+          updateStudentList(studentData);
+        } else {
+          console.error('Failed to load students:', response.status);
+        }
+      } catch (error) {
+        console.error('Error loading students:', error);
+      }
+    }
+
+    function updateStudentList(studentData) {
+      // Ensure studentData is an array
+      if (!Array.isArray(studentData)) {
+        console.warn('Student data is not an array:', studentData);
+        studentData = [];
       }
       
       const studentList = document.getElementById('student-list');
-      const studentListDetailed = document.getElementById('student-list-detailed');
+      if (!studentList) return;
       
-      if (studentList) {
-        studentList.innerHTML = '';
-      }
-      if (studentListDetailed) {
-        studentListDetailed.innerHTML = '';
-      }
+      studentList.innerHTML = '';
 
-      students.slice(0, 50).forEach(student => {
-        // Calculate risk level based on GPA and attendance
+      studentData.slice(0, 50).forEach(student => {
+        // Calculate risk level based on GPA
         const gpa = student.academic?.gpa || 0;
+        const risk = calculateRiskLevel(gpa);
         const absences = student.academic?.attendanceAbsences || 0;
         const credits = Math.min(student.academic?.creditsEarned || 0, 33); // Cap at 33
-        
-        let riskLevel = 'success';
-        let riskText = 'On Track';
-        
-        if (gpa < 3.1) {
-          riskLevel = 'danger';
-          riskText = 'At Risk';
-        }
         
         const studentItem = document.createElement('div');
         studentItem.className = 'list-item';
@@ -625,28 +647,18 @@
           <div class="student-info">
             <div class="student-name">${student.firstName || student.first_name} ${student.lastName || student.last_name}</div>
             <div class="student-details">
-              ID: ${student.studentId || student.student_id} • ${student.major} • ${student.year} • 
+              ID: ${student.studentId || student.student_id} • ${student.major || 'N/A'} • ${student.year || 'N/A'} • 
               GPA: ${gpa.toFixed(2)} • Credits: ${credits} • Absences: ${absences}
             </div>
-            <div class="student-contact">
-              📧 ${student.email} • 📞 ${student.phone}
-            </div>
-            <div class="student-advisor">
-              Advisor: ${student.assignedAdvisor ? `${student.assignedAdvisor.firstName} ${student.assignedAdvisor.lastName}` : 'Not Assigned'}
-            </div>
+            ${student.email ? `<div class="student-contact">📧 ${student.email}${student.phone ? ` • 📞 ${student.phone}` : ''}</div>` : ''}
           </div>
-          <span class="chip ${riskLevel}">${riskText}</span>
+          <span class="chip ${risk.level}">${risk.text}</span>
         `;
-        studentItem.onclick = () => openStudentModal(student);
         
         if (studentList) {
-          studentList.appendChild(studentItem.cloneNode(true));
-        }
-        if (studentListDetailed) {
-          studentListDetailed.appendChild(studentItem);
+          studentList.appendChild(studentItem);
         }
       });
-      */
     }
 
     function updateRecentActivity() {
@@ -765,7 +777,10 @@
       // Fallback: Direct click handlers for each tab
       const tabButtons = {
         'overview': () => switchToTab('overview'),
-        // 'students': () => switchToTab('students'),
+        'status-students': () => {
+          switchToTab('status-students');
+          loadStatusStudents();
+        },
         'courses': () => switchToTab('courses'),
         'analytics': () => switchToTab('analytics')
       };
@@ -950,7 +965,7 @@
     }
 
     // ---------- Analytics Charts ----------
-    let retentionChart, performanceChart, riskChart;
+    let retentionChart, performanceChart, riskChart, riskBreakdownChart, majorDistributionChart, yearDistributionChart;
 
     function maybeRenderAnalyticsCharts() {
       const analyticsTab = document.getElementById('analytics');
@@ -958,6 +973,9 @@
         renderRetentionChart();
         renderPerformanceChart();
         renderRiskChart();
+        renderRiskBreakdownChart();
+        renderMajorDistributionChart();
+        renderYearDistributionChart();
       }
     }
 
@@ -969,6 +987,19 @@
       if (tabId === 'analytics') {
         // Slight delay to ensure canvas is laid out
         setTimeout(maybeRenderAnalyticsCharts, 0);
+      } else if (tabId === 'status-students') {
+        // Load status students when tab is clicked
+        setTimeout(loadStatusStudents, 0);
+      }
+    });
+
+    // Add real-time search for status students
+    document.addEventListener('DOMContentLoaded', () => {
+      const statusSearch = document.getElementById('status-search');
+      if (statusSearch) {
+        statusSearch.addEventListener('input', () => {
+          applyStatusFilters();
+        });
       }
     });
 
@@ -977,19 +1008,20 @@
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
-      // Use overall retention from CSV stats as a gauge-like doughnut
       try {
         const resp = await fetch(`${API_BASE_URL}/api/data/csv-stats`);
         if (!resp.ok) throw new Error('stats fail');
         const stats = await resp.json();
         const rate = typeof stats.retentionRate === 'number' ? stats.retentionRate : 0;
+        const notRetained = Math.max(0, 100 - rate);
 
         const data = {
           labels: ['Retained', 'Not Retained'],
           datasets: [{
-            data: [rate, Math.max(0, 100 - rate)],
-            backgroundColor: ['#10b981', '#e5e7eb'],
-            borderWidth: 0
+            data: [rate, notRetained],
+            backgroundColor: ['#10b981', '#ef4444'],
+            borderWidth: 2,
+            borderColor: '#fff'
           }]
         };
 
@@ -998,14 +1030,62 @@
           type: 'doughnut',
           data,
           options: {
-            cutout: '70%',
+            cutout: '65%',
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-              legend: { display: false },
-              tooltip: { enabled: true }
+              legend: { 
+                display: true,
+                position: 'bottom',
+                labels: {
+                  padding: 15,
+                  font: { size: 12, weight: '600' },
+                  usePointStyle: true
+                }
+              },
+              tooltip: { 
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    return `${label}: ${value.toFixed(1)}%`;
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: `${rate.toFixed(1)}% Retention Rate`,
+                position: 'top',
+                font: { size: 16, weight: 'bold' },
+                color: '#1f2937'
+              }
             }
-          }
+          },
+          plugins: [{
+            id: 'centerText',
+            beforeDraw: function(chart) {
+              const ctx = chart.ctx;
+              const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+              const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+              
+              ctx.save();
+              ctx.font = 'bold 32px system-ui';
+              ctx.fillStyle = '#1f2937';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(`${rate.toFixed(1)}%`, centerX, centerY - 10);
+              
+              ctx.font = '14px system-ui';
+              ctx.fillStyle = '#6b7280';
+              ctx.fillText('Retention', centerX, centerY + 15);
+              ctx.restore();
+            }
+          }]
         });
-      } catch (_) { /* ignore */ }
+      } catch (error) {
+        console.error('Error rendering retention chart:', error);
+      }
     }
 
     async function renderPerformanceChart() {
@@ -1018,20 +1098,25 @@
         if (!resp.ok) throw new Error('students fail');
         const data = await resp.json();
 
-        // GPA bands counts
+        // GPA bands with risk-based colors
         const bands = [
-          { label: '<2.0', min: -Infinity, max: 2.0 },
-          { label: '2.0-2.5', min: 2.0, max: 2.5 },
-          { label: '2.5-3.0', min: 2.5, max: 3.0 },
-          { label: '3.0-3.5', min: 3.0, max: 3.5 },
-          { label: '3.5-4.0', min: 3.5, max: 4.01 }
+          { label: '<2.0', min: -Infinity, max: 2.0, color: '#dc2626' },
+          { label: '2.0-2.5', min: 2.0, max: 2.5, color: '#ea580c' },
+          { label: '2.5-3.0', min: 2.5, max: 3.0, color: '#f59e0b' },
+          { label: '3.0-3.5', min: 3.0, max: 3.5, color: '#3b82f6' },
+          { label: '3.5-4.0', min: 3.5, max: 4.01, color: '#10b981' }
         ];
         const counts = bands.map(b => 0);
+        let totalStudents = 0;
+        
         for (const s of data) {
           const g = s?.academic?.gpa ?? 0;
-          for (let i = 0; i < bands.length; i++) {
-            const b = bands[i];
-            if (g >= b.min && g < b.max) { counts[i]++; break; }
+          if (g > 0) {
+            totalStudents++;
+            for (let i = 0; i < bands.length; i++) {
+              const b = bands[i];
+              if (g >= b.min && g < b.max) { counts[i]++; break; }
+            }
           }
         }
 
@@ -1041,20 +1126,93 @@
           data: {
             labels: bands.map(b => b.label),
             datasets: [{
-              label: 'Students',
+              label: 'Number of Students',
               data: counts,
-              backgroundColor: '#3b82f6'
+              backgroundColor: bands.map(b => b.color),
+              borderColor: bands.map(b => b.color),
+              borderWidth: 2,
+              borderRadius: 6
             }]
           },
           options: {
-            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { 
+                display: true,
+                position: 'top',
+                labels: {
+                  font: { size: 11 },
+                  padding: 10
+                }
+              },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const value = context.parsed.y;
+                    const percentage = totalStudents > 0 ? ((value / totalStudents) * 100).toFixed(1) : 0;
+                    return `${value} students (${percentage}%)`;
+                  },
+                  afterLabel: function(context) {
+                    const label = context.label;
+                    if (label === '<2.0' || label === '2.0-2.5' || (label === '2.5-3.0')) {
+                      return '⚠️ High Risk';
+                    } else if (label === '3.0-3.5') {
+                      return '⚠️ Medium Risk';
+                    } else {
+                      return '✓ Low Risk';
+                    }
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: `GPA Distribution (Total: ${totalStudents} students)`,
+                position: 'top',
+                font: { size: 14, weight: 'bold' },
+                color: '#1f2937',
+                padding: { bottom: 15 }
+              }
+            },
             scales: {
-              x: { grid: { display: false } },
-              y: { beginAtZero: true }
+              x: { 
+                grid: { display: false },
+                ticks: {
+                  font: { size: 11, weight: '600' },
+                  color: '#374151'
+                },
+                title: {
+                  display: true,
+                  text: 'GPA Range',
+                  font: { size: 12, weight: 'bold' },
+                  color: '#6b7280'
+                }
+              },
+              y: { 
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  font: { size: 11 },
+                  color: '#6b7280'
+                },
+                grid: {
+                  color: '#e5e7eb',
+                  lineWidth: 1
+                },
+                title: {
+                  display: true,
+                  text: 'Number of Students',
+                  font: { size: 12, weight: 'bold' },
+                  color: '#6b7280'
+                }
+              }
             }
           }
         });
-      } catch (_) { /* ignore */ }
+      } catch (error) {
+        console.error('Error rendering performance chart:', error);
+      }
     }
 
     async function renderRiskChart() {
@@ -1067,39 +1225,415 @@
         if (!resp.ok) throw new Error('students fail');
         const data = await resp.json();
 
-        // Count at-risk (gpa < 3.1) by major
-        const map = new Map();
+        console.log('Risk Chart - Total students loaded:', data.length);
+
+        // Count students by risk level and major
+        const riskByMajor = new Map();
+        const majorTotals = new Map();
+        
         for (const s of data) {
-          const g = s?.academic?.gpa ?? 0;
-          if (g < 3.1) {
-            const major = s.major || 'Unknown';
-            map.set(major, (map.get(major) || 0) + 1);
+          const g = parseFloat(s?.academic?.gpa) || 0;
+          // Get major field - CSV returns it as 'major'
+          const major = s.major || 'Unknown';
+          
+          // Count total students per major
+          majorTotals.set(major, (majorTotals.get(major) || 0) + 1);
+          
+          // Count high-risk students (GPA <= 2.9)
+          if (g > 0 && g <= 2.9) {
+            riskByMajor.set(major, (riskByMajor.get(major) || 0) + 1);
           }
         }
-        const labels = Array.from(map.keys());
-        const values = Array.from(map.values());
+
+        console.log('Risk Chart - High risk students by major:', Array.from(riskByMajor.entries()));
+        console.log('Risk Chart - Total majors:', majorTotals.size);
+
+        // If no high-risk students found, show all majors with 0 high-risk
+        let sortedEntries;
+        if (riskByMajor.size === 0) {
+          // Show all majors with 0 high-risk students
+          sortedEntries = Array.from(majorTotals.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([major]) => [major, 0]);
+        } else {
+          // Sort by number of high-risk students (descending)
+          sortedEntries = Array.from(riskByMajor.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10); // Show top 10 majors
+        }
+
+        const labels = sortedEntries.map(([major]) => major);
+        const highRiskCounts = sortedEntries.map(([, count]) => count);
+        const totalCounts = sortedEntries.map(([major]) => majorTotals.get(major) || 0);
+        const percentages = sortedEntries.map(([major], idx) => {
+          const total = totalCounts[idx] || 1;
+          return ((highRiskCounts[idx] / total) * 100).toFixed(1);
+        });
+
+        console.log('Risk Chart - Labels:', labels);
+        console.log('Risk Chart - Counts:', highRiskCounts);
 
         if (riskChart) riskChart.destroy();
+        
+        // If no data, show a message
+        if (labels.length === 0 || highRiskCounts.every(c => c === 0)) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.font = '16px system-ui';
+          ctx.fillStyle = '#6b7280';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('No high-risk students found', canvas.width / 2, canvas.height / 2);
+          ctx.restore();
+          return;
+        }
+
         riskChart = new Chart(ctx, {
           type: 'bar',
           data: {
             labels,
             datasets: [{
-              label: 'At-Risk',
-              data: values,
-              backgroundColor: '#ef4444'
+              label: 'High Risk Students',
+              data: highRiskCounts,
+              backgroundColor: '#ef4444',
+              borderColor: '#dc2626',
+              borderWidth: 2,
+              borderRadius: 6
             }]
           },
           options: {
             indexAxis: 'y',
-            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { 
+                display: true,
+                position: 'top',
+                labels: {
+                  font: { size: 11 },
+                  padding: 10,
+                  usePointStyle: true
+                }
+              },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const index = context.dataIndex;
+                    const highRisk = highRiskCounts[index];
+                    const total = totalCounts[index];
+                    const percentage = percentages[index];
+                    return [
+                      `High Risk: ${highRisk} students`,
+                      `Total in Major: ${total} students`,
+                      `Risk Rate: ${percentage}%`
+                    ];
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: 'High Risk Students by Major (GPA ≤ 2.9)',
+                position: 'top',
+                font: { size: 14, weight: 'bold' },
+                color: '#1f2937',
+                padding: { bottom: 15 }
+              }
+            },
             scales: {
-              x: { beginAtZero: true },
-              y: { grid: { display: false } }
+              x: { 
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  font: { size: 11 },
+                  color: '#6b7280',
+                  precision: 0
+                },
+                grid: {
+                  color: '#e5e7eb',
+                  lineWidth: 1
+                },
+                title: {
+                  display: true,
+                  text: 'Number of High Risk Students',
+                  font: { size: 12, weight: 'bold' },
+                  color: '#6b7280'
+                }
+              },
+              y: { 
+                grid: { 
+                  display: false
+                },
+                ticks: {
+                  font: { size: 11, weight: '600' },
+                  color: '#374151'
+                }
+              }
             }
           }
         });
-      } catch (_) { /* ignore */ }
+      } catch (error) {
+        console.error('Error rendering risk chart:', error);
+        // Show error message on canvas
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#ef4444';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Error loading chart data', canvas.width / 2, canvas.height / 2);
+        ctx.restore();
+      }
+    }
+
+    async function renderRiskBreakdownChart() {
+      const canvas = document.getElementById('riskBreakdownChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (!resp.ok) throw new Error('students fail');
+        const data = await resp.json();
+
+        let highRisk = 0, mediumRisk = 0, noRisk = 0;
+        
+        for (const s of data) {
+          const g = s?.academic?.gpa ?? 0;
+          if (g >= 0 && g <= 2.9) {
+            highRisk++;
+          } else if (g >= 3.0 && g <= 3.2) {
+            mediumRisk++;
+          } else if (g > 3.2) {
+            noRisk++;
+          }
+        }
+
+        if (riskBreakdownChart) riskBreakdownChart.destroy();
+        riskBreakdownChart = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ['High Risk (0-2.9)', 'Medium Risk (3.0-3.2)', 'No Risk (>3.2)'],
+            datasets: [{
+              data: [highRisk, mediumRisk, noRisk],
+              backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+              borderColor: '#fff',
+              borderWidth: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'bottom',
+                labels: {
+                  padding: 15,
+                  font: { size: 12, weight: '600' },
+                  usePointStyle: true
+                }
+              },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    const total = highRisk + mediumRisk + noRisk;
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} students (${percentage}%)`;
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: `Risk Level Distribution (Total: ${highRisk + mediumRisk + noRisk} students)`,
+                position: 'top',
+                font: { size: 14, weight: 'bold' },
+                color: '#1f2937',
+                padding: { bottom: 15 }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering risk breakdown chart:', error);
+      }
+    }
+
+    async function renderMajorDistributionChart() {
+      const canvas = document.getElementById('majorDistributionChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (!resp.ok) throw new Error('students fail');
+        const data = await resp.json();
+
+        const majorCounts = new Map();
+        for (const s of data) {
+          const major = s.major || 'Unknown';
+          majorCounts.set(major, (majorCounts.get(major) || 0) + 1);
+        }
+
+        const sortedEntries = Array.from(majorCounts.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8);
+
+        const labels = sortedEntries.map(([major]) => major);
+        const counts = sortedEntries.map(([, count]) => count);
+
+        if (majorDistributionChart) majorDistributionChart.destroy();
+        majorDistributionChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Number of Students',
+              data: counts,
+              backgroundColor: '#6366f1',
+              borderColor: '#4f46e5',
+              borderWidth: 2,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    return `${context.parsed.y} students`;
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: 'Student Enrollment by Major',
+                position: 'top',
+                font: { size: 14, weight: 'bold' },
+                color: '#1f2937',
+                padding: { bottom: 15 }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: {
+                  font: { size: 10 },
+                  color: '#374151',
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  font: { size: 11 },
+                  color: '#6b7280'
+                },
+                grid: {
+                  color: '#e5e7eb',
+                  lineWidth: 1
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering major distribution chart:', error);
+      }
+    }
+
+    async function renderYearDistributionChart() {
+      const canvas = document.getElementById('yearDistributionChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (!resp.ok) throw new Error('students fail');
+        const data = await resp.json();
+
+        const yearCounts = {
+          'First Year': 0,
+          'Second Year': 0,
+          'Third Year': 0,
+          'Fourth Year': 0,
+          'Graduate': 0
+        };
+
+        for (const s of data) {
+          const year = s.year || 'Unknown';
+          if (yearCounts.hasOwnProperty(year)) {
+            yearCounts[year]++;
+          }
+        }
+
+        const labels = Object.keys(yearCounts);
+        const counts = Object.values(yearCounts);
+        const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+
+        if (yearDistributionChart) yearDistributionChart.destroy();
+        yearDistributionChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{
+              data: counts,
+              backgroundColor: colors,
+              borderColor: '#fff',
+              borderWidth: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '60%',
+            plugins: {
+              legend: {
+                display: true,
+                position: 'bottom',
+                labels: {
+                  padding: 12,
+                  font: { size: 11, weight: '600' },
+                  usePointStyle: true
+                }
+              },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    const total = counts.reduce((a, b) => a + b, 0);
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} students (${percentage}%)`;
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: `Year Distribution (Total: ${counts.reduce((a, b) => a + b, 0)} students)`,
+                position: 'top',
+                font: { size: 14, weight: 'bold' },
+                color: '#1f2937',
+                padding: { bottom: 15 }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering year distribution chart:', error);
+      }
     }
 
     function loadAtRiskStudents() {
@@ -1169,6 +1703,224 @@
       document.getElementById('course-modal').classList.remove('active');
       form.reset();
     }
+
+    // Status Students Management Functions
+    let statusStudents = [];
+    let studentStatuses = {}; // Store student statuses in memory (in production, use database)
+
+    // Load student statuses from localStorage
+    function loadStudentStatuses() {
+      const stored = localStorage.getItem('studentStatuses');
+      if (stored) {
+        try {
+          studentStatuses = JSON.parse(stored);
+        } catch (e) {
+          studentStatuses = {};
+        }
+      }
+    }
+
+    // Save student statuses to localStorage
+    function saveStudentStatuses() {
+      localStorage.setItem('studentStatuses', JSON.stringify(studentStatuses));
+    }
+
+    // Get status for a student (default to 'pending')
+    function getStudentStatus(studentId) {
+      return studentStatuses[studentId] || 'pending';
+    }
+
+    // Set status for a student
+    function setStudentStatus(studentId, status) {
+      studentStatuses[studentId] = status;
+      saveStudentStatuses();
+    }
+
+    async function loadStatusStudents() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (response.ok) {
+          const students = await response.json();
+          statusStudents = students;
+          loadStudentStatuses();
+          populateMajorFilter(students);
+          updateStatusStudentList(students);
+        } else {
+          console.error('Failed to load students for status:', response.status);
+        }
+      } catch (error) {
+        console.error('Error loading status students:', error);
+      }
+    }
+
+    function populateMajorFilter(students) {
+      const majorFilter = document.getElementById('status-major-filter');
+      if (!majorFilter) return;
+
+      // Get unique majors
+      const majors = [...new Set(students.map(s => s.major || s.major).filter(Boolean))].sort();
+      
+      // Clear existing options except "All Majors"
+      majorFilter.innerHTML = '<option value="">All Majors</option>';
+      
+      majors.forEach(major => {
+        const option = document.createElement('option');
+        option.value = major;
+        option.textContent = major;
+        majorFilter.appendChild(option);
+      });
+    }
+
+    function updateStatusStudentList(students) {
+      const listContainer = document.getElementById('status-student-list');
+      if (!listContainer) return;
+
+      listContainer.innerHTML = '';
+
+      if (students.length === 0) {
+        listContainer.innerHTML = '<div class="list-item" style="text-align: center; color: #6b7280;">No students found</div>';
+        return;
+      }
+
+      students.forEach(student => {
+        const gpa = student.academic?.gpa || 0;
+        const risk = calculateRiskLevel(gpa);
+        const status = getStudentStatus(student.studentId || student.student_id);
+        const studentId = student.studentId || student.student_id;
+
+        const studentItem = document.createElement('div');
+        studentItem.className = 'list-item';
+        studentItem.style.cursor = 'default';
+        studentItem.innerHTML = `
+          <div class="student-info" style="flex: 1;">
+            <div class="student-name">${student.firstName || student.first_name} ${student.lastName || student.last_name}</div>
+            <div class="student-details">
+              ID: ${studentId} • ${student.major || 'N/A'} • ${student.year || 'N/A'} • GPA: ${gpa.toFixed(2)}
+            </div>
+            ${student.email ? `<div class="student-contact" style="font-size: 12px; color: #6b7280; margin-top: 4px;">📧 ${student.email}</div>` : ''}
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span class="chip ${risk.level}">${risk.text}</span>
+            <select class="status-select" data-student-id="${studentId}" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 13px; min-width: 120px;" onchange="updateStudentStatus('${studentId}', this.value)">
+              <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
+              <option value="advised" ${status === 'advised' ? 'selected' : ''}>Advised</option>
+              <option value="consulted" ${status === 'consulted' ? 'selected' : ''}>Consulted</option>
+              <option value="done" ${status === 'done' ? 'selected' : ''}>Done</option>
+              <option value="follow-up" ${status === 'follow-up' ? 'selected' : ''}>Follow-up</option>
+            </select>
+          </div>
+        `;
+        listContainer.appendChild(studentItem);
+      });
+    }
+
+    function updateStudentStatus(studentId, newStatus) {
+      setStudentStatus(studentId, newStatus);
+      // Optionally show a notification
+      console.log(`Student ${studentId} status updated to: ${newStatus}`);
+    }
+
+    function applyStatusFilters() {
+      const searchTerm = document.getElementById('status-search').value.toLowerCase();
+      const riskFilter = document.getElementById('status-risk-filter').value;
+      const statusFilter = document.getElementById('status-filter').value;
+      const majorFilter = document.getElementById('status-major-filter').value;
+
+      let filtered = [...statusStudents];
+
+      // Search filter
+      if (searchTerm) {
+        filtered = filtered.filter(s => {
+          const name = `${s.firstName || s.first_name} ${s.lastName || s.last_name}`.toLowerCase();
+          const id = String(s.studentId || s.student_id).toLowerCase();
+          return name.includes(searchTerm) || id.includes(searchTerm);
+        });
+      }
+
+      // Risk filter
+      if (riskFilter) {
+        filtered = filtered.filter(s => {
+          const gpa = s.academic?.gpa || 0;
+          const risk = calculateRiskLevel(gpa);
+          if (riskFilter === 'high') return risk.level === 'danger';
+          if (riskFilter === 'medium') return risk.level === 'warning';
+          if (riskFilter === 'no') return risk.level === 'success';
+          return true;
+        });
+      }
+
+      // Status filter
+      if (statusFilter) {
+        filtered = filtered.filter(s => {
+          const studentId = s.studentId || s.student_id;
+          return getStudentStatus(studentId) === statusFilter;
+        });
+      }
+
+      // Major filter
+      if (majorFilter) {
+        filtered = filtered.filter(s => (s.major || '') === majorFilter);
+      }
+
+      updateStatusStudentList(filtered);
+    }
+
+    function clearStatusFilters() {
+      document.getElementById('status-search').value = '';
+      document.getElementById('status-risk-filter').value = '';
+      document.getElementById('status-filter').value = '';
+      document.getElementById('status-major-filter').value = '';
+      updateStatusStudentList(statusStudents);
+    }
+
+    function openAddStudentToStatusModal() {
+      document.getElementById('add-student-status-modal').classList.add('active');
+      loadAvailableStudentsForAdd();
+    }
+
+    async function loadAvailableStudentsForAdd() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (response.ok) {
+          const students = await response.json();
+          const select = document.getElementById('add-student-select');
+          if (select) {
+            select.innerHTML = '<option value="">Select a student...</option>';
+            students.forEach(student => {
+              const studentId = student.studentId || student.student_id;
+              const option = document.createElement('option');
+              option.value = studentId;
+              option.textContent = `${student.firstName || student.first_name} ${student.lastName || student.last_name} (ID: ${studentId})`;
+              select.appendChild(option);
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading students for add:', error);
+      }
+    }
+
+    function addStudentToStatus() {
+      const select = document.getElementById('add-student-select');
+      const studentId = select?.value;
+      
+      if (!studentId) {
+        alert('Please select a student');
+        return;
+      }
+
+      // Set initial status to 'pending'
+      setStudentStatus(studentId, 'pending');
+      
+      // Reload the status student list
+      loadStatusStudents();
+      
+      // Close modal
+      document.getElementById('add-student-status-modal').classList.remove('active');
+      select.value = '';
+      
+      alert('Student added to status list!');
+    }
   </script>
 </head>
 <body>
@@ -1190,7 +1942,7 @@
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="overview">📊 Overview</button>
-      <!-- <button class="nav-tab" data-tab="students">👥 Students</button> -->
+      <button class="nav-tab" data-tab="status-students">👥 Status Students</button>
       <button class="nav-tab" data-tab="courses">📚 Courses</button>
       <button class="nav-tab" data-tab="analytics">📈 Analytics</button>
     </div>
@@ -1210,24 +1962,99 @@
       </div>
     </div>
 
+    <!-- Status Students Tab -->
+    <div id="status-students" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2><span class="card-icon">👥</span>Status Students</h2>
+          <button class="btn primary" onclick="openAddStudentToStatusModal()">Add Student</button>
+        </div>
+        
+        <!-- Filters Section -->
+        <div class="card" style="background: #f9fafb; margin-bottom: 20px; padding: 20px;">
+          <h3 style="font-size: 16px; margin-bottom: 16px; color: #1f2937;">Filters</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div>
+              <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Search Student</label>
+              <input type="text" id="status-search" placeholder="Name or ID..." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Risk Level</label>
+              <select id="status-risk-filter" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                <option value="">All Risk Levels</option>
+                <option value="high">High Risk</option>
+                <option value="medium">Medium Risk</option>
+                <option value="no">No Risk</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Status</label>
+              <select id="status-filter" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="advised">Advised</option>
+                <option value="consulted">Consulted</option>
+                <option value="done">Done</option>
+                <option value="follow-up">Follow-up</option>
+              </select>
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Major</label>
+              <select id="status-major-filter" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                <option value="">All Majors</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button class="btn primary" onclick="applyStatusFilters()">Apply Filters</button>
+            <button class="btn secondary" onclick="clearStatusFilters()">Clear</button>
+          </div>
+        </div>
+        
+        <!-- Student Status List -->
+        <div class="list" id="status-student-list">
+          <!-- Students will be loaded here -->
+        </div>
+      </div>
+    </div>
+
     <!-- Analytics Tab -->
     <div id="analytics" class="tab-content">
       <div class="grid-3">
         <div class="card">
           <h2><span class="card-icon">📊</span>Retention Rates</h2>
-          <p>Track student retention by semester and program.</p>
-          <div style="height:220px"><canvas id="retentionChart"></canvas></div>
-          <div style="margin-top:8px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Overall student retention percentage showing retained vs. not retained students.</p>
+          <div style="height:280px; position: relative;"><canvas id="retentionChart"></canvas></div>
+          <div style="margin-top:12px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
         </div>
         <div class="card">
-          <h2><span class="card-icon">📈</span>Performance Trends</h2>
-          <p>GPA distribution across bands.</p>
-          <div style="height:220px"><canvas id="performanceChart"></canvas></div>
+          <h2><span class="card-icon">📈</span>GPA Distribution</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Distribution of students across different GPA ranges with risk indicators.</p>
+          <div style="height:280px"><canvas id="performanceChart"></canvas></div>
         </div>
         <div class="card">
-          <h2><span class="card-icon">🎯</span>Risk Analysis</h2>
-          <p>At-risk students by major.</p>
-          <div style="height:220px"><canvas id="riskChart"></canvas></div>
+          <h2><span class="card-icon">🎯</span>Risk Analysis by Major</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">High-risk students (GPA ≤ 2.9) broken down by academic major.</p>
+          <div style="height:280px"><canvas id="riskChart"></canvas></div>
+        </div>
+      </div>
+      
+      <!-- Additional Analytics Cards -->
+      <div class="grid-3" style="margin-top: 24px;">
+        <div class="card">
+          <h2><span class="card-icon">📉</span>Risk Level Breakdown</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Complete breakdown of students by risk level categories.</p>
+          <div style="height:280px"><canvas id="riskBreakdownChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h2><span class="card-icon">📚</span>Students by Major</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Total number of students enrolled in each major program.</p>
+          <div style="height:280px"><canvas id="majorDistributionChart"></canvas></div>
+        </div>
+        <div class="card">
+          <h2><span class="card-icon">📅</span>Year Distribution</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Student population distribution across academic years.</p>
+          <div style="height:280px"><canvas id="yearDistributionChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -1261,14 +2088,12 @@
     </div>
 
     <div class="grid">
-        <!--
         <div class="card">
           <h2><span class="card-icon">👥</span>My Students</h2>
           <div class="list" id="student-list">
+            <!-- Students will be loaded here -->
           </div>
         </div>
-        -->
-        
       </div>
     </div>
 
@@ -1561,6 +2386,28 @@
     </div>
   </div>
   <!-- At Risk Students Modal commented out above -->
+
+  <!-- Add Student to Status Modal -->
+  <div id="add-student-status-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add Student to Status List</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="form">
+        <div>
+          <label>Select Student:</label>
+          <select id="add-student-select" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px;">
+            <option value="">Loading students...</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn secondary" onclick="document.getElementById('add-student-status-modal').classList.remove('active')">Cancel</button>
+          <button class="btn primary" onclick="addStudentToStatus()">Add Student</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
 

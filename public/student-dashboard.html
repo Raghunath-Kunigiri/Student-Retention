@@ -46,14 +46,18 @@
     }
     .card { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
     .card h2 { font-size: 18px; margin-bottom: 12px; color: #333; }
-    .metrics { display: grid; grid-template-columns: repeat(4, minmax(120px,1fr)); gap: 12px; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 12px; }
     .metric { background: linear-gradient(135deg,#f7f9ff,#fff); border: 1px solid #e8ecf2; border-radius: 12px; padding: 14px; }
     .metric .label { color: #667; font-size: 12px; }
-    .metric .value { font-size: 22px; font-weight: 700; margin-top: 6px; background: linear-gradient(135deg,#667eea,#764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .metric .value { font-size: 22px; font-weight: 700; margin-top: 6px; background: linear-gradient(135deg,#667eea,#764ba2); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
     .list { display: grid; gap: 10px; }
     .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #eef1f6; border-radius: 10px; background: #fafbff; }
     .chip { padding: 4px 10px; border-radius: 999px; font-size: 12px; background: #eef2ff; color: #4f46e5; }
+    .chip.success { background: #dcfce7; color: #166534; }
+    .chip.warning { background: #fef3c7; color: #92400e; }
+    .chip.danger { background: #fee2e2; color: #991b1b; }
+    .chip.info { background: #dbeafe; color: #1e40af; }
 
     .form { display: grid; gap: 12px; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -112,7 +116,148 @@
 
       // Load advisor information
       await loadMyAdvisor(studentId);
+      
+      // Load student metrics and risk level
+      await loadStudentMetrics(studentId);
     });
+
+    // Function to calculate risk level based on GPA
+    function calculateRiskLevel(gpa) {
+      if (gpa >= 0 && gpa <= 2.9) {
+        return { level: 'danger', text: 'High Risk' };
+      } else if (gpa >= 3.0 && gpa <= 3.2) {
+        return { level: 'warning', text: 'Medium Risk' };
+      } else if (gpa > 3.2) {
+        return { level: 'success', text: 'No Risk' };
+      } else {
+        // Default for invalid GPA
+        return { level: 'info', text: 'Unknown' };
+      }
+    }
+
+    async function loadStudentMetrics(studentId) {
+      if (!studentId) {
+        console.warn('No studentId provided for loadStudentMetrics');
+        // Try to calculate risk from displayed GPA as fallback
+        calculateRiskFromDisplayedGPA();
+        return;
+      }
+
+      try {
+        const response = await fetch(`${window.location.origin}/api/data/csv-students`);
+        if (response.ok) {
+          const students = await response.json();
+          console.log('Loaded students:', students.length, 'Looking for studentId:', studentId);
+          
+          // Try multiple ways to find the student - CSV returns student_id
+          const student = students.find(s => {
+            const sId = s.studentId || s.student_id;
+            const searchId = parseInt(studentId) || studentId;
+            // Try multiple comparison methods
+            return sId == searchId || 
+                   sId === searchId || 
+                   String(sId) === String(searchId) ||
+                   parseInt(sId) === parseInt(searchId);
+          });
+
+          console.log('Found student:', student ? 'Yes' : 'No');
+          if (student) {
+            console.log('Student data:', {
+              student_id: student.student_id,
+              studentId: student.studentId,
+              academic: student.academic
+            });
+          }
+
+          if (student) {
+            const gpa = parseFloat(student.academic?.gpa) || 0;
+            const credits = parseInt(student.academic?.creditsEarned) || 0;
+            const absences = parseInt(student.academic?.attendanceAbsences) || 0;
+            const risk = calculateRiskLevel(gpa);
+            
+            console.log('Student GPA:', gpa, 'Risk Level:', risk);
+            
+            // Update GPA display
+            const gpaElement = document.querySelector('.metric .value');
+            if (gpaElement) {
+              gpaElement.textContent = gpa.toFixed(2);
+            }
+            
+            // Update credits display
+            const creditsElement = document.querySelectorAll('.metric .value')[1];
+            if (creditsElement) {
+              creditsElement.textContent = `${credits}/120`;
+            }
+            
+            // Calculate attendance percentage (assuming some base calculation)
+            const attendanceElement = document.querySelectorAll('.metric .value')[2];
+            if (attendanceElement) {
+              // Simple calculation: 100% - (absences * some factor)
+              // This is a placeholder - adjust based on your attendance calculation
+              const attendancePercent = Math.max(0, Math.min(100, 100 - (absences * 2)));
+              attendanceElement.textContent = `${Math.round(attendancePercent)}%`;
+            }
+            
+            // Display risk level metric
+            displayRiskMetric(risk);
+          } else {
+            console.warn('Student not found in CSV data. StudentId:', studentId, 'Available IDs:', students.slice(0, 5).map(s => s.studentId || s.student_id));
+            // Fallback: Calculate risk from displayed GPA
+            calculateRiskFromDisplayedGPA();
+          }
+        } else {
+          console.error('Failed to load student data:', response.status);
+          // Fallback: Calculate risk from displayed GPA
+          calculateRiskFromDisplayedGPA();
+        }
+      } catch (error) {
+        console.error('Error loading student metrics:', error);
+        // Fallback: Calculate risk from displayed GPA
+        calculateRiskFromDisplayedGPA();
+      }
+    }
+
+    function calculateRiskFromDisplayedGPA() {
+      // Fallback: Get GPA from the displayed value and calculate risk
+      const gpaElement = document.querySelector('.metric .value');
+      if (gpaElement) {
+        const displayedGPA = parseFloat(gpaElement.textContent);
+        if (!isNaN(displayedGPA) && displayedGPA > 0) {
+          const risk = calculateRiskLevel(displayedGPA);
+          console.log('Calculated risk from displayed GPA:', displayedGPA, 'Risk:', risk);
+          displayRiskMetric(risk);
+          return;
+        }
+      }
+      // If we can't get GPA, show unknown
+      displayRiskMetric({ level: 'info', text: 'Unknown' });
+    }
+
+    function displayRiskMetric(risk) {
+      const metricsContainer = document.querySelector('.metrics');
+      if (!metricsContainer) {
+        console.error('Metrics container not found');
+        return;
+      }
+
+      // Check if risk metric already exists
+      let riskMetric = document.getElementById('risk-metric');
+      if (!riskMetric) {
+        // Create risk metric element
+        riskMetric = document.createElement('div');
+        riskMetric.id = 'risk-metric';
+        riskMetric.className = 'metric';
+        metricsContainer.appendChild(riskMetric);
+      }
+
+      // Update risk metric content
+      riskMetric.innerHTML = `
+        <div class="label">Risk Level</div>
+        <div class="value" style="font-size: 16px; background-clip: unset; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background: unset; margin-top: 8px;">
+          <span class="chip ${risk.level}">${risk.text}</span>
+        </div>
+      `;
+    }
 
     async function loadMyAdvisor(studentId) {
       if (!studentId) {
@@ -202,6 +347,12 @@
             <div class="metric"><div class="label">Credits</div><div class="value">72/120</div></div>
             <div class="metric"><div class="label">Attendance</div><div class="value">95%</div></div>
             <div class="metric"><div class="label">Alerts</div><div class="value">0</div></div>
+            <div class="metric" id="risk-metric">
+              <div class="label">Risk Level</div>
+              <div class="value" style="font-size: 16px; background-clip: unset; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background: unset; margin-top: 8px;">
+                <span class="chip info">Loading...</span>
+              </div>
+            </div>
           </div>
         </div>
 
