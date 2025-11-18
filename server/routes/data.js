@@ -292,17 +292,99 @@ router.get('/students', async (req, res) => {
 });
 
 // Get specific student data
-router.get('/students/:id', (req, res) => {
+router.get('/students/:id', async (req, res) => {
   try {
     const studentId = parseInt(req.params.id);
+    
+    // Get CSV data first (source of truth)
     const students = csvParser.getStudentData();
-    const student = students.find(s => s.student_id === studentId);
-
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
+    const csvStudent = students.find(s => {
+      const sId = s.student_id || s.studentId;
+      return sId == studentId || sId === studentId || String(sId) === String(studentId);
+    });
+    
+    // Try to get from MongoDB (for registered students)
+    const mongoStudent = await Student.findOne({ studentId }).select('-password');
+    
+    if (mongoStudent && csvStudent) {
+      // Merge CSV data with MongoDB data, prioritizing CSV for name, email, major, year, phone
+      const mergedStudent = {
+        ...mongoStudent.toObject(),
+        // Override with CSV data (source of truth) - CSV always takes priority
+        firstName: csvStudent.first_name || mongoStudent.firstName,
+        lastName: csvStudent.last_name || mongoStudent.lastName,
+        email: csvStudent.email || mongoStudent.email,
+        phone: csvStudent.phone || mongoStudent.phone || 'Not provided',
+        major: csvStudent.major || mongoStudent.major,
+        year: csvStudent.year || mongoStudent.year,
+        enrollmentStatus: csvStudent.enrollment_status || mongoStudent.enrollmentStatus,
+        birthDate: csvStudent.birth_date ? new Date(csvStudent.birth_date) : mongoStudent.birthDate,
+        advisor_id: csvStudent.advisor_id, // Include advisor_id from CSV
+        // Prioritize CSV data for academic, financial, housing
+        academic: csvStudent.academic || mongoStudent.academic || {},
+        financial: csvStudent.financial ? {
+          ...csvStudent.financial,
+          fee_balance: parseFloat(csvStudent.financial.fee_balance) || 0,
+          days_overdue: parseInt(csvStudent.financial.days_overdue) || 0
+        } : (mongoStudent.financial || {}),
+        housing: csvStudent.housing || mongoStudent.housing || {}
+      };
+      console.log('Merged student data:', {
+        studentId: mergedStudent.studentId,
+        phone: mergedStudent.phone,
+        major: mergedStudent.major,
+        year: mergedStudent.year,
+        csvPhone: csvStudent.phone,
+        csvMajor: csvStudent.major,
+        csvYear: csvStudent.year,
+        financial: mergedStudent.financial
+      });
+      return res.json(mergedStudent);
+    }
+    
+    if (mongoStudent) {
+      // MongoDB student exists but not in CSV (shouldn't happen after our validation)
+      return res.json(mongoStudent);
+    }
+    
+    if (csvStudent) {
+      // Return CSV student data formatted for the dashboard
+      const csvData = {
+        studentId: csvStudent.student_id,
+        firstName: csvStudent.first_name || '',
+        lastName: csvStudent.last_name || '',
+        email: csvStudent.email || '',
+        phone: csvStudent.phone || 'Not provided',
+        major: csvStudent.major || '',
+        year: csvStudent.year || '',
+        enrollmentStatus: csvStudent.enrollment_status || 'Enrolled',
+        birthDate: csvStudent.birth_date ? new Date(csvStudent.birth_date) : null,
+        advisor_id: csvStudent.advisor_id, // Include advisor_id from CSV
+        academic: csvStudent.academic || {},
+        financial: csvStudent.financial ? {
+          ...csvStudent.financial,
+          fee_balance: parseFloat(csvStudent.financial.fee_balance) || 0,
+          days_overdue: parseInt(csvStudent.financial.days_overdue) || 0
+        } : {
+          fee_balance: 0,
+          financial_aid_status: 'No Financial Aid',
+          days_overdue: 0,
+          last_payment_date: null
+        },
+        housing: csvStudent.housing || {}
+      };
+      console.log('CSV student data returned:', {
+        studentId: csvData.studentId,
+        phone: csvData.phone,
+        major: csvData.major,
+        year: csvData.year,
+        advisor_id: csvData.advisor_id,
+        financial: csvData.financial
+      });
+      return res.json(csvData);
     }
 
-    res.json(student);
+    return res.status(404).json({ error: 'Student not found' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -375,24 +457,84 @@ router.get('/advisors/department/:department', async (req, res) => {
   }
 });
 
-// Get student's assigned advisor
+// Get student's assigned advisor (auto-assign if not assigned)
 router.get('/students/:id/advisor', async (req, res) => {
   try {
     const studentId = parseInt(req.params.id);
-    const student = await Student.findOne({ studentId }).select('advisorId');
     
-    if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
+    // First, try to get advisor from CSV data (source of truth)
+    const students = csvParser.getStudentData();
+    const csvStudent = students.find(s => {
+      const sId = s.student_id || s.studentId;
+      return sId == studentId || sId === studentId || String(sId) === String(studentId);
+    });
+    
+    if (csvStudent && csvStudent.advisor_id) {
+      console.log('Student has advisor_id from CSV:', csvStudent.advisor_id);
+      
+      // Try to find advisor in MongoDB first
+      let advisor = await Advisor.findOne({ advisorId: parseInt(csvStudent.advisor_id) });
+      
+      // If not in MongoDB, get from CSV
+      if (!advisor) {
+        console.log('Advisor not found in MongoDB, checking CSV...');
+        const advisors = csvParser.parseCSV('advisors.csv');
+        const csvAdvisor = advisors.find(a => {
+          const aId = a.advisor_id || a.advisorId;
+          const searchId = parseInt(csvStudent.advisor_id);
+          return aId == searchId || aId === searchId || String(aId) === String(searchId) || parseInt(aId) === parseInt(searchId);
+        });
+        
+        console.log('CSV advisor lookup:', {
+          searchingFor: csvStudent.advisor_id,
+          found: csvAdvisor ? 'Yes' : 'No',
+          advisor: csvAdvisor ? { id: csvAdvisor.advisor_id, name: `${csvAdvisor.first_name} ${csvAdvisor.last_name}` } : null
+        });
+        
+        if (csvAdvisor) {
+          // Return CSV advisor data formatted for the dashboard
+          const advisorData = {
+            advisorId: parseInt(csvAdvisor.advisor_id) || csvAdvisor.advisor_id,
+            firstName: csvAdvisor.first_name || '',
+            lastName: csvAdvisor.last_name || '',
+            email: csvAdvisor.email || '',
+            phone: csvAdvisor.phone || 'Not provided',
+            department: csvAdvisor.department || 'Unknown'
+          };
+          console.log('Returning CSV advisor data:', advisorData);
+          return res.json(advisorData);
+        } else {
+          console.error('Advisor not found in CSV for advisor_id:', csvStudent.advisor_id);
+        }
+      } else {
+        console.log('Advisor found in MongoDB:', advisor.advisorId);
+        // Return MongoDB advisor without sensitive data
+        const advisorData = advisor.toObject();
+        delete advisorData.password;
+        delete advisorData.assignedStudents;
+        return res.json(advisorData);
+      }
+    } else {
+      console.log('Student has no advisor_id in CSV:', {
+        hasCsvStudent: !!csvStudent,
+        advisor_id: csvStudent?.advisor_id
+      });
     }
     
-    const advisor = await Advisor.findOne({ advisorId: student.advisorId })
-      .select('-password -assignedStudents');
+    // Fallback to name-based assignment if CSV advisor_id not found
+    const { getStudentAdvisor } = require('../utils/advisorAssignment');
+    const advisor = await getStudentAdvisor(studentId);
     
     if (!advisor) {
-      return res.status(404).json({ error: 'Advisor not found' });
+      return res.status(404).json({ error: 'Could not find or assign advisor' });
     }
     
-    res.json(advisor);
+    // Return advisor without sensitive data
+    const advisorData = advisor.toObject();
+    delete advisorData.password;
+    delete advisorData.assignedStudents;
+    
+    res.json(advisorData);
   } catch (error) {
     console.error('Student advisor error:', error);
     res.status(500).json({ error: error.message });
@@ -521,15 +663,92 @@ router.get('/students/detailed', async (req, res) => {
   }
 });
 
-// Get student enrollment data with course details
+// Get student enrollment data with course details from CSV, grouped by term
 router.get('/students/:id/enrollments', async (req, res) => {
   try {
     const studentId = parseInt(req.params.id);
-    const enrollments = await Enrollment.find({ studentId })
-      .populate('courseId', 'courseCode courseName credits department')
-      .sort({ enrolledDate: -1 });
     
-    res.json(enrollments);
+    // Get enrollments from CSV
+    const enrollments = csvParser.parseCSV('enrollments.csv');
+    const courses = csvParser.parseCSV('courses.csv');
+    const terms = csvParser.parseCSV('terms.csv');
+    
+    // Filter enrollments for this student
+    const studentEnrollments = enrollments.filter(e => {
+      const eId = e.student_id || e.studentId;
+      return eId == studentId || eId === studentId || String(eId) === String(studentId);
+    });
+    
+    // Create course lookup map
+    const courseMap = new Map(courses.map(c => [c.course_id || c.courseId, c]));
+    
+    // Create term lookup map
+    const termMap = new Map(terms.map(t => [t.term_id || t.termId, t]));
+    
+    // Enrich enrollments with course and term details
+    const enrichedEnrollments = studentEnrollments.map(enrollment => {
+      const courseId = enrollment.course_id || enrollment.courseId;
+      const termId = enrollment.term_id || enrollment.termId;
+      const course = courseMap.get(parseInt(courseId));
+      const term = termMap.get(parseInt(termId));
+      
+      return {
+        enrollment_id: enrollment.enrollment_id || enrollment.enrollmentId,
+        student_id: enrollment.student_id || enrollment.studentId,
+        course_id: courseId,
+        term_id: termId,
+        grade: enrollment.grade || 'N/A',
+        status: enrollment.status || 'Unknown',
+        enrolled_date: enrollment.enrolled_date || enrollment.enrolledDate,
+        course: course ? {
+          course_id: course.course_id || course.courseId,
+          course_code: course.course_code || course.courseCode,
+          course_title: course.course_title || course.courseTitle,
+          credits: course.credits || 0,
+          department: course.department || 'Unknown'
+        } : null,
+        term: term ? {
+          term_id: term.term_id || term.termId,
+          term_name: term.term_name || term.termName,
+          start_date: term.start_date || term.startDate,
+          end_date: term.end_date || term.endDate,
+          academic_year: term.academic_year || term.academicYear
+        } : null
+      };
+    });
+    
+    // Group by term_id
+    const groupedByTerm = {};
+    enrichedEnrollments.forEach(enrollment => {
+      const termId = enrollment.term_id;
+      if (!groupedByTerm[termId]) {
+        groupedByTerm[termId] = {
+          term: enrollment.term,
+          enrollments: []
+        };
+      }
+      groupedByTerm[termId].enrollments.push(enrollment);
+    });
+    
+    // Sort terms by term_id (newest first)
+    const sortedTerms = Object.keys(groupedByTerm)
+      .sort((a, b) => parseInt(b) - parseInt(a))
+      .map(termId => groupedByTerm[termId]);
+    
+    // Sort enrollments within each term by enrolled_date (newest first)
+    sortedTerms.forEach(termGroup => {
+      termGroup.enrollments.sort((a, b) => {
+        const dateA = new Date(a.enrolled_date);
+        const dateB = new Date(b.enrolled_date);
+        return dateB - dateA;
+      });
+    });
+    
+    res.json({
+      studentId: studentId,
+      totalEnrollments: enrichedEnrollments.length,
+      terms: sortedTerms
+    });
   } catch (error) {
     console.error('Student enrollments error:', error);
     res.status(500).json({ error: error.message });
@@ -716,6 +935,111 @@ router.get('/risk-analysis', async (req, res) => {
     });
   } catch (error) {
     console.error('Risk analysis error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Sync student data with CSV (update MongoDB records to match CSV)
+router.post('/sync-student/:id', async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.id);
+    
+    // Get CSV data
+    const students = csvParser.getStudentData();
+    const csvStudent = students.find(s => {
+      const sId = s.student_id || s.studentId;
+      return sId == studentId || sId === studentId || String(sId) === String(studentId);
+    });
+    
+    if (!csvStudent) {
+      return res.status(404).json({ error: 'Student not found in CSV' });
+    }
+    
+    // Find student in MongoDB
+    const mongoStudent = await Student.findOne({ studentId });
+    
+    if (!mongoStudent) {
+      return res.status(404).json({ error: 'Student not found in database' });
+    }
+    
+    // Update student with CSV data
+    mongoStudent.firstName = csvStudent.first_name || mongoStudent.firstName;
+    mongoStudent.lastName = csvStudent.last_name || mongoStudent.lastName;
+    mongoStudent.email = csvStudent.email || mongoStudent.email;
+    mongoStudent.phone = (csvStudent.phone && csvStudent.phone.trim() !== '') ? csvStudent.phone : mongoStudent.phone;
+    mongoStudent.major = csvStudent.major || mongoStudent.major;
+    mongoStudent.year = csvStudent.year || mongoStudent.year;
+    mongoStudent.enrollmentStatus = csvStudent.enrollment_status || mongoStudent.enrollmentStatus;
+    if (csvStudent.birth_date) {
+      mongoStudent.birthDate = new Date(csvStudent.birth_date);
+    }
+    
+    // Assign advisor from CSV if available
+    if (csvStudent.advisor_id) {
+      const advisor = await Advisor.findOne({ advisorId: parseInt(csvStudent.advisor_id) });
+      if (advisor) {
+        mongoStudent.assignedAdvisor = advisor._id;
+        if (!advisor.assignedStudents.includes(mongoStudent._id)) {
+          advisor.assignedStudents.push(mongoStudent._id);
+          advisor.currentStudents = advisor.assignedStudents.length;
+          await advisor.save();
+        }
+      }
+    }
+    
+    await mongoStudent.save();
+    
+    res.json({
+      success: true,
+      message: 'Student data synced with CSV',
+      student: {
+        studentId: mongoStudent.studentId,
+        firstName: mongoStudent.firstName,
+        lastName: mongoStudent.lastName,
+        email: mongoStudent.email,
+        phone: mongoStudent.phone,
+        major: mongoStudent.major,
+        year: mongoStudent.year
+      }
+    });
+  } catch (error) {
+    console.error('Error syncing student:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Clear all user data (students and advisors) - USE WITH CAUTION
+router.delete('/clear-all-users', async (req, res) => {
+  try {
+    const { confirm } = req.query;
+    
+    // Require explicit confirmation
+    if (confirm !== 'true') {
+      return res.status(400).json({ 
+        error: 'This action will delete ALL students and advisors. Add ?confirm=true to confirm.' 
+      });
+    }
+
+    console.log('⚠️  Clearing all user data...');
+    
+    // Delete all students
+    const studentResult = await Student.deleteMany({});
+    console.log(`Deleted ${studentResult.deletedCount} student(s)`);
+
+    // Delete all advisors
+    const advisorResult = await Advisor.deleteMany({});
+    console.log(`Deleted ${advisorResult.deletedCount} advisor(s)`);
+
+    res.json({
+      success: true,
+      message: 'All user data cleared successfully',
+      deleted: {
+        students: studentResult.deletedCount,
+        advisors: advisorResult.deletedCount
+      }
+    });
+  } catch (error) {
+    console.error('Error clearing database:', error);
     res.status(500).json({ error: error.message });
   }
 });

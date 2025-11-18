@@ -42,10 +42,31 @@
     .signout:hover { background: rgba(102,126,234,.15); }
 
     .grid {
-      display: grid; grid-template-columns: 2fr 1fr; gap: 20px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
     }
-    .card { background: #fff; border: 1px solid #e8ecf2; border-radius: 14px; padding: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }
-    .card h2 { font-size: 18px; margin-bottom: 12px; color: #333; }
+    .left-column, .right-column {
+      display: flex; flex-direction: column; gap: 20px;
+    }
+    .card { 
+      background: #fff; 
+      border: 1px solid #e8ecf2; 
+      border-radius: 14px; 
+      padding: 20px; 
+      box-shadow: 0 8px 24px rgba(0,0,0,.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0,0,0,.1);
+    }
+    .card h2 { 
+      font-size: 18px; 
+      margin-bottom: 16px; 
+      color: #333; 
+      font-weight: 600;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 12px;
+    }
     .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 12px; }
     .metric { background: linear-gradient(135deg,#f7f9ff,#fff); border: 1px solid #e8ecf2; border-radius: 12px; padding: 14px; }
     .metric .label { color: #667; font-size: 12px; }
@@ -69,7 +90,31 @@
     .btn.primary { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; box-shadow: 0 8px 20px rgba(102,126,234,.3); }
     .btn.secondary { background: #eef2ff; color: #4f46e5; }
 
-    @media (max-width: 900px){ .grid { grid-template-columns: 1fr; } .metrics { grid-template-columns: repeat(2,1fr); } }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    
+    .info-section {
+      display: grid;
+      gap: 20px;
+    }
+    
+    @media (max-width: 1024px) { 
+      .grid { 
+        grid-template-columns: 1fr; 
+      } 
+      .metrics-grid { 
+        grid-template-columns: repeat(2, 1fr); 
+      } 
+    }
+    
+    @media (max-width: 640px) { 
+      .metrics-grid { 
+        grid-template-columns: 1fr; 
+      } 
+    }
   </style>
   <link rel="stylesheet" href="styles/theme.css" />
   <script type="module" src="../src/index.js"></script>
@@ -117,22 +162,56 @@
       // Load advisor information
       await loadMyAdvisor(studentId);
       
+      // Load advisors for dropdown
+      await loadAdvisorsForDropdown(studentId);
+      
       // Load student metrics and risk level
       await loadStudentMetrics(studentId);
+      
+      // Load student profile
+      await loadStudentProfile(studentId);
+      
+      // Load financial information
+      await loadFinancialData(studentId);
+      
+      // Load course enrollments
+      await loadEnrollments(studentId);
     });
 
-    // Function to calculate risk level based on GPA
-    function calculateRiskLevel(gpa) {
+    // Function to calculate risk level based on GPA and financial status
+    function calculateRiskLevel(gpa, financialData = null) {
+      let riskLevel = { level: 'success', text: 'No Risk', score: 0 };
+      
+      // Check GPA risk
       if (gpa >= 0 && gpa <= 2.9) {
-        return { level: 'danger', text: 'High Risk' };
+        riskLevel = { level: 'danger', text: 'High Risk', score: 30 };
       } else if (gpa >= 3.0 && gpa <= 3.2) {
-        return { level: 'warning', text: 'Medium Risk' };
+        riskLevel = { level: 'warning', text: 'Medium Risk', score: 15 };
       } else if (gpa > 3.2) {
-        return { level: 'success', text: 'No Risk' };
+        riskLevel = { level: 'success', text: 'No Risk', score: 0 };
       } else {
-        // Default for invalid GPA
-        return { level: 'info', text: 'Unknown' };
+        riskLevel = { level: 'info', text: 'Unknown', score: 0 };
       }
+      
+      // Check financial overdue risk (high priority - overrides GPA risk if overdue)
+      if (financialData) {
+        const daysOverdue = parseInt(financialData.days_overdue) || 0;
+        const feeBalance = parseFloat(financialData.fee_balance) || 0;
+        
+        if (daysOverdue > 0) {
+          // Financial overdue is high risk
+          riskLevel = { level: 'danger', text: 'High Risk', score: 50 };
+        } else if (feeBalance > 5000) {
+          // High fee balance is medium-high risk
+          if (riskLevel.level === 'success') {
+            riskLevel = { level: 'warning', text: 'Medium Risk', score: 20 };
+          } else if (riskLevel.level === 'warning') {
+            riskLevel = { level: 'danger', text: 'High Risk', score: 40 };
+          }
+        }
+      }
+      
+      return riskLevel;
     }
 
     async function loadStudentMetrics(studentId) {
@@ -144,67 +223,51 @@
       }
 
       try {
-        const response = await fetch(`${window.location.origin}/api/data/csv-students`);
+        // Use the student profile endpoint which already has all the data merged
+        const response = await fetch(`${window.location.origin}/api/data/students/${studentId}`);
         if (response.ok) {
-          const students = await response.json();
-          console.log('Loaded students:', students.length, 'Looking for studentId:', studentId);
-          
-          // Try multiple ways to find the student - CSV returns student_id
-          const student = students.find(s => {
-            const sId = s.studentId || s.student_id;
-            const searchId = parseInt(studentId) || studentId;
-            // Try multiple comparison methods
-            return sId == searchId || 
-                   sId === searchId || 
-                   String(sId) === String(searchId) ||
-                   parseInt(sId) === parseInt(searchId);
+          const student = await response.json();
+          console.log('Loaded student data for metrics:', {
+            studentId: student.studentId,
+            academic: student.academic,
+            financial: student.financial
           });
-
-          console.log('Found student:', student ? 'Yes' : 'No');
-          if (student) {
-            console.log('Student data:', {
-              student_id: student.student_id,
-              studentId: student.studentId,
-              academic: student.academic
-            });
+          
+          const gpa = parseFloat(student.academic?.gpa) || 0;
+          const credits = parseInt(student.academic?.creditsEarned) || parseInt(student.academic?.credits) || 0;
+          const absences = parseInt(student.academic?.attendanceAbsences) || 0;
+          const financialData = student.financial || {};
+          
+          // Calculate risk level
+          const risk = calculateRiskLevel(gpa, financialData);
+          console.log('Calculated risk level:', {
+            gpa: gpa,
+            financial: financialData,
+            risk: risk
+          });
+          
+          // Update GPA display
+          const gpaElement = document.querySelector('.metrics-grid .metric .value');
+          if (gpaElement && gpa > 0) {
+            gpaElement.textContent = gpa.toFixed(2);
           }
-
-          if (student) {
-            const gpa = parseFloat(student.academic?.gpa) || 0;
-            const credits = parseInt(student.academic?.creditsEarned) || 0;
-            const absences = parseInt(student.academic?.attendanceAbsences) || 0;
-            const risk = calculateRiskLevel(gpa);
-            
-            console.log('Student GPA:', gpa, 'Risk Level:', risk);
-            
-            // Update GPA display
-            const gpaElement = document.querySelector('.metric .value');
-            if (gpaElement) {
-              gpaElement.textContent = gpa.toFixed(2);
-            }
-            
-            // Update credits display
-            const creditsElement = document.querySelectorAll('.metric .value')[1];
-            if (creditsElement) {
-              creditsElement.textContent = `${credits}/120`;
-            }
-            
-            // Calculate attendance percentage (assuming some base calculation)
-            const attendanceElement = document.querySelectorAll('.metric .value')[2];
-            if (attendanceElement) {
-              // Simple calculation: 100% - (absences * some factor)
-              // This is a placeholder - adjust based on your attendance calculation
-              const attendancePercent = Math.max(0, Math.min(100, 100 - (absences * 2)));
-              attendanceElement.textContent = `${Math.round(attendancePercent)}%`;
-            }
-            
-            // Display risk level metric
-            displayRiskMetric(risk);
-          } else {
-            console.warn('Student not found in CSV data. StudentId:', studentId, 'Available IDs:', students.slice(0, 5).map(s => s.studentId || s.student_id));
-            // Fallback: Calculate risk from displayed GPA
-            calculateRiskFromDisplayedGPA();
+          
+          // Update credits display
+          const creditsElements = document.querySelectorAll('.metrics-grid .metric .value');
+          if (creditsElements.length > 1 && credits > 0) {
+            creditsElements[1].textContent = `${credits}/120`;
           }
+          
+          // Calculate attendance percentage
+          const attendanceElements = document.querySelectorAll('.metrics-grid .metric .value');
+          if (attendanceElements.length > 2) {
+            // Simple calculation: 100% - (absences * some factor)
+            const attendancePercent = Math.max(0, Math.min(100, 100 - (absences * 2)));
+            attendanceElements[2].textContent = `${Math.round(attendancePercent)}%`;
+          }
+          
+          // Display risk level metric
+          displayRiskMetric(risk);
         } else {
           console.error('Failed to load student data:', response.status);
           // Fallback: Calculate risk from displayed GPA
@@ -219,22 +282,44 @@
 
     function calculateRiskFromDisplayedGPA() {
       // Fallback: Get GPA from the displayed value and calculate risk
-      const gpaElement = document.querySelector('.metric .value');
+      const gpaElement = document.querySelector('.metrics-grid .metric .value');
       if (gpaElement) {
         const displayedGPA = parseFloat(gpaElement.textContent);
         if (!isNaN(displayedGPA) && displayedGPA > 0) {
-          const risk = calculateRiskLevel(displayedGPA);
-          console.log('Calculated risk from displayed GPA:', displayedGPA, 'Risk:', risk);
+          // Try to get financial data if available
+          let financialData = null;
+          try {
+            const daysOverdue = parseInt(document.getElementById('days-overdue')?.textContent) || 0;
+            const feeBalanceText = document.getElementById('fee-balance')?.textContent || '';
+            const feeBalance = parseFloat(feeBalanceText.replace(/[^0-9.]/g, '')) || 0;
+            if (daysOverdue > 0 || feeBalance > 0) {
+              financialData = {
+                days_overdue: daysOverdue,
+                fee_balance: feeBalance
+              };
+            }
+          } catch (e) {
+            console.log('Could not get financial data for risk calculation');
+          }
+          
+          const risk = calculateRiskLevel(displayedGPA, financialData);
+          console.log('Calculated risk from displayed GPA:', displayedGPA, 'Financial:', financialData, 'Risk:', risk);
           displayRiskMetric(risk);
           return;
         }
       }
       // If we can't get GPA, show unknown
+      console.warn('Could not calculate risk level - GPA not available');
       displayRiskMetric({ level: 'info', text: 'Unknown' });
     }
 
     function displayRiskMetric(risk) {
-      const metricsContainer = document.querySelector('.metrics');
+      if (!risk) {
+        console.warn('No risk data provided to displayRiskMetric');
+        risk = { level: 'info', text: 'Unknown' };
+      }
+      
+      const metricsContainer = document.querySelector('.metrics-grid');
       if (!metricsContainer) {
         console.error('Metrics container not found');
         return;
@@ -257,7 +342,11 @@
           <span class="chip ${risk.level}">${risk.text}</span>
         </div>
       `;
+      
+      console.log('Risk metric displayed:', risk);
     }
+
+    let assignedAdvisorId = null;
 
     async function loadMyAdvisor(studentId) {
       if (!studentId) {
@@ -269,26 +358,90 @@
         const response = await fetch(`${window.location.origin}/api/data/students/${studentId}/advisor`);
         if (response.ok) {
           const advisor = await response.json();
+          console.log('Advisor data received:', advisor);
+          
+          assignedAdvisorId = advisor.advisorId || advisor._id || advisor.id;
+          
+          // Ensure we have required fields
+          const firstName = advisor.firstName || advisor.first_name || '';
+          const lastName = advisor.lastName || advisor.last_name || '';
+          const email = advisor.email || 'Not provided';
+          const department = advisor.department || 'Unknown';
+          const phone = advisor.phone || 'Not provided';
+          
+          if (!firstName && !lastName) {
+            document.getElementById('my-advisor').innerHTML = '<div class="list-item">Advisor information incomplete</div>';
+            return;
+          }
+          
           document.getElementById('my-advisor').innerHTML = `
             <div class="list-item">
-              <span>${advisor.firstName} ${advisor.lastName}</span>
-              <span class="chip">${advisor.department}</span>
+              <span><strong>${firstName} ${lastName}</strong></span>
+              <span class="chip">${department}</span>
             </div>
             <div class="list-item">
-              <span>${advisor.email}</span>
+              <span>${email}</span>
               <span class="chip">Contact</span>
             </div>
+            ${phone && phone !== 'Not provided' ? `
             <div class="list-item">
-              <span>${advisor.phone}</span>
+              <span>${phone}</span>
               <span class="chip">Phone</span>
+            </div>
+            ` : ''}
+            <div class="list-item" style="margin-top: 8px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+              <span style="font-size: 12px; color: #6b7280;">This is your assigned advisor from the system records</span>
             </div>
           `;
         } else {
-          document.getElementById('my-advisor').innerHTML = '<div class="list-item">No advisor assigned</div>';
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('Failed to load advisor:', response.status, errorData);
+          document.getElementById('my-advisor').innerHTML = '<div class="list-item">No advisor assigned. One will be assigned automatically.</div>';
         }
       } catch (error) {
         console.error('Error loading advisor:', error);
-        document.getElementById('my-advisor').innerHTML = '<div class="list-item">Error loading advisor</div>';
+        document.getElementById('my-advisor').innerHTML = '<div class="list-item">Error loading advisor: ' + error.message + '</div>';
+      }
+    }
+
+    async function loadAdvisorsForDropdown(studentId) {
+      const advisorSelect = document.getElementById('advisor-select');
+      if (!advisorSelect) return;
+
+      try {
+        const response = await fetch(`${window.location.origin}/api/data/advisors`);
+        if (response.ok) {
+          const advisors = await response.json();
+          advisorSelect.innerHTML = '<option value="">Select an advisor</option>';
+          
+          advisors.forEach(advisor => {
+            const option = document.createElement('option');
+            // Always use numeric advisorId for consistency
+            const advisorValue = advisor.advisorId || (advisor._id ? String(advisor._id) : '');
+            option.value = advisorValue;
+            option.textContent = `${advisor.firstName} ${advisor.lastName} - ${advisor.department}`;
+            advisorSelect.appendChild(option);
+          });
+
+          // If assigned advisor is set, ensure it's selected
+          if (assignedAdvisorId) {
+            // Try to find and select the assigned advisor
+            const options = Array.from(advisorSelect.options);
+            const assignedOption = options.find(opt => {
+              const optValue = parseInt(opt.value) || opt.value;
+              const assignedValue = parseInt(assignedAdvisorId) || assignedAdvisorId;
+              return optValue == assignedValue; // Use == for loose comparison
+            });
+            if (assignedOption) {
+              assignedOption.selected = true;
+            }
+          }
+        } else {
+          advisorSelect.innerHTML = '<option value="">Error loading advisors</option>';
+        }
+      } catch (error) {
+        console.error('Error loading advisors:', error);
+        advisorSelect.innerHTML = '<option value="">Error loading advisors</option>';
       }
     }
 
@@ -296,6 +449,17 @@
     async function submitHelpRequest(e){
       e.preventDefault();
       const form = e.target;
+      const selectedAdvisorId = form.advisorId.value;
+      
+      if (!selectedAdvisorId) {
+        alert('Please select an advisor');
+        return;
+      }
+
+      console.log('📝 Submitting help request...');
+      console.log('   Selected Advisor ID:', selectedAdvisorId);
+      console.log('   Student ID:', localStorage.getItem('studentId'));
+
       const payload = {
         type: 'help-request',
         data: {
@@ -305,20 +469,529 @@
           urgency: form.urgency.value,
           studentId: localStorage.getItem('studentId') || null,
           fullName: localStorage.getItem('fullName') || null,
-          email: localStorage.getItem('email') || null
+          email: localStorage.getItem('email') || null,
+          advisorId: selectedAdvisorId // Include selected advisor ID
         }
       };
+      
+      console.log('📤 Payload being sent:', payload);
+      
       try{
         const res = await fetch(`${window.location.origin}/api/entries`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        if(!res.ok) throw new Error('Request failed');
+        
+        const result = await res.json().catch(() => ({ error: 'Failed to parse response' }));
+        
+        if(!res.ok) {
+          console.error('❌ Request failed:', res.status, result);
+          throw new Error(result.error || 'Request failed');
+        }
+        
+        console.log('✅ Request submitted successfully:', result);
+        console.log('   Notification created:', result.notificationCreated);
+        console.log('   Notification data:', result.notification);
+        
         form.reset();
-        alert('Your request has been submitted. Our team will reach out soon.');
+        // Reset advisor selection to assigned advisor
+        if (assignedAdvisorId) {
+          form.advisorId.value = assignedAdvisorId;
+        }
+        
+        // Show success message with notification status
+        if (result.notificationCreated) {
+          alert(`✅ Request submitted successfully!\n\nYour request has been saved and your advisor (${result.notification?.advisorName || 'advisor'}) has been notified. They will see it in their dashboard and will reach out soon.`);
+        } else {
+          alert(`✅ Request submitted successfully!\n\nYour request has been saved. ${result.message || 'Your advisor will be notified shortly.'}`);
+        }
+        
+        // Close the form after successful submission
+        toggleHelpRequestForm();
       } catch(err){
-        alert('Failed to submit. Please try again.');
+        console.error('❌ Error submitting request:', err);
+        alert('Failed to submit. Please try again. Error: ' + err.message);
+      }
+    }
+
+    async function loadFinancialData(studentId) {
+      if (!studentId) {
+        console.warn('No studentId provided for loadFinancialData');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${window.location.origin}/api/data/students/${studentId}`);
+        if (!response.ok) {
+          throw new Error('Failed to load financial data');
+        }
+        const student = await response.json();
+        
+        const financial = student.financial || {};
+        // Handle both fee_balance (CSV) and feeBalance (MongoDB) field names
+        const feeBalance = parseFloat(financial.fee_balance || financial.feeBalance || 0);
+        const financialAidStatus = financial.financial_aid_status || financial.financialAidStatus || 'No Financial Aid';
+        // Handle both days_overdue (CSV) and daysOverdue (MongoDB) field names
+        const daysOverdue = parseInt(financial.days_overdue || financial.daysOverdue || 0);
+        const lastPaymentDate = financial.last_payment_date || financial.lastPaymentDate || 'Not available';
+        
+        console.log('Financial data from API:', financial);
+        console.log('Parsed financial values:', { feeBalance, financialAidStatus, daysOverdue, lastPaymentDate });
+        
+        // Show financial card
+        const financialCard = document.getElementById('financial-card');
+        if (financialCard) {
+          financialCard.style.display = 'block';
+        }
+        
+        // Display fee balance
+        const feeBalanceElement = document.getElementById('fee-balance');
+        if (feeBalanceElement) {
+          feeBalanceElement.textContent = `$${feeBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        
+        // Display balance chip
+        const balanceChip = document.getElementById('balance-chip');
+        if (balanceChip) {
+          if (feeBalance === 0) {
+            balanceChip.textContent = 'Paid';
+            balanceChip.className = 'chip success';
+          } else if (feeBalance < 1000) {
+            balanceChip.textContent = 'Low';
+            balanceChip.className = 'chip info';
+          } else if (feeBalance < 5000) {
+            balanceChip.textContent = 'Medium';
+            balanceChip.className = 'chip warning';
+          } else {
+            balanceChip.textContent = 'High';
+            balanceChip.className = 'chip danger';
+          }
+        }
+        
+        // Display financial aid status
+        const aidStatusElement = document.getElementById('aid-status');
+        if (aidStatusElement) {
+          aidStatusElement.textContent = financialAidStatus;
+        }
+        
+        // Display aid chip
+        const aidChip = document.getElementById('aid-chip');
+        if (aidChip) {
+          if (financialAidStatus === 'On Financial Aid') {
+            aidChip.textContent = 'Active';
+            aidChip.className = 'chip success';
+          } else {
+            aidChip.textContent = 'None';
+            aidChip.className = 'chip';
+          }
+        }
+        
+        // Display last payment date
+        const lastPaymentElement = document.getElementById('last-payment');
+        if (lastPaymentElement) {
+          if (lastPaymentDate && lastPaymentDate !== 'Not available') {
+            // Format date if it's a valid date string
+            try {
+              const date = new Date(lastPaymentDate);
+              if (!isNaN(date.getTime())) {
+                lastPaymentElement.textContent = date.toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                });
+              } else {
+                lastPaymentElement.textContent = lastPaymentDate;
+              }
+            } catch (e) {
+              lastPaymentElement.textContent = lastPaymentDate;
+            }
+          } else {
+            lastPaymentElement.textContent = 'Not available';
+          }
+        }
+        
+        // Display overdue information if applicable
+        const overdueItem = document.getElementById('overdue-item');
+        const daysOverdueElement = document.getElementById('days-overdue');
+        if (daysOverdue > 0) {
+          if (overdueItem) {
+            overdueItem.style.display = 'flex';
+          }
+          if (daysOverdueElement) {
+            daysOverdueElement.textContent = `${daysOverdue} days`;
+          }
+        } else {
+          if (overdueItem) {
+            overdueItem.style.display = 'none';
+          }
+        }
+        
+        console.log('Financial data loaded:', {
+          feeBalance,
+          financialAidStatus,
+          daysOverdue,
+          lastPaymentDate
+        });
+        
+        // Update risk level based on financial data
+        const gpaElement = document.querySelector('.metrics-grid .metric .value');
+        if (gpaElement) {
+          const displayedGPA = parseFloat(gpaElement.textContent);
+          if (!isNaN(displayedGPA) && displayedGPA > 0) {
+            const financialData = {
+              days_overdue: daysOverdue,
+              fee_balance: feeBalance
+            };
+            const risk = calculateRiskLevel(displayedGPA, financialData);
+            console.log('Updating risk level with financial data:', { displayedGPA, financialData, risk });
+            displayRiskMetric(risk);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading financial data:', error);
+        // Hide financial card on error
+        const financialCard = document.getElementById('financial-card');
+        if (financialCard) {
+          financialCard.style.display = 'none';
+        }
+      }
+    }
+
+    // Store enrollment data globally for filtering
+    let enrollmentData = null;
+
+    async function loadEnrollments(studentId) {
+      if (!studentId) {
+        console.warn('No studentId provided for loadEnrollments');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${window.location.origin}/api/data/students/${studentId}/enrollments`);
+        if (!response.ok) {
+          throw new Error('Failed to load enrollments');
+        }
+        const data = await response.json();
+        
+        // Store enrollment data globally
+        enrollmentData = data;
+        
+        const enrollmentsCard = document.getElementById('enrollments-card');
+        const container = document.getElementById('enrollments-container');
+        const termSelect = document.getElementById('term-select');
+        
+        if (!enrollmentsCard || !container || !termSelect) {
+          console.error('Enrollments card elements not found');
+          return;
+        }
+        
+        if (!data.terms || data.terms.length === 0) {
+          container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No enrollments found.</div>';
+          enrollmentsCard.style.display = 'none';
+          return;
+        }
+        
+        // Show card
+        enrollmentsCard.style.display = 'block';
+        
+        // Populate term dropdown
+        termSelect.innerHTML = '<option value="">Select a Term</option>';
+        data.terms.forEach(termGroup => {
+          const term = termGroup.term;
+          if (term) {
+            const option = document.createElement('option');
+            option.value = term.term_id;
+            option.textContent = `${term.term_name || `Term ${term.term_id}`}${term.academic_year ? ` (${term.academic_year})` : ''}`;
+            termSelect.appendChild(option);
+          }
+        });
+        
+        // Add event listener for term selection
+        termSelect.addEventListener('change', function() {
+          displayEnrollments(this.value);
+        });
+        
+        // Show empty container initially
+        container.innerHTML = '';
+        
+        console.log('Enrollments loaded:', {
+          totalEnrollments: data.totalEnrollments,
+          terms: data.terms.length
+        });
+      } catch (error) {
+        console.error('Error loading enrollments:', error);
+        const enrollmentsCard = document.getElementById('enrollments-card');
+        if (enrollmentsCard) {
+          enrollmentsCard.style.display = 'none';
+        }
+      }
+    }
+
+    function displayEnrollments(selectedTermId) {
+      if (!enrollmentData || !enrollmentData.terms) {
+        return;
+      }
+      
+      const container = document.getElementById('enrollments-container');
+      if (!container) {
+        return;
+      }
+      
+      // If no term selected, show empty
+      if (!selectedTermId || selectedTermId === '') {
+        container.innerHTML = '';
+        return;
+      }
+      
+      // Filter terms based on selection
+      const termsToDisplay = enrollmentData.terms.filter(termGroup => {
+        const termId = termGroup.term?.term_id || termGroup.term?.termId;
+        return termId == selectedTermId || termId === selectedTermId || String(termId) === String(selectedTermId);
+      });
+      
+      if (termsToDisplay.length === 0) {
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No enrollments found for selected term.</div>';
+        return;
+      }
+      
+      // Calculate total enrollments for displayed term
+      const displayedTotal = termsToDisplay.reduce((sum, termGroup) => sum + termGroup.enrollments.length, 0);
+      
+      // Build HTML for enrollments grouped by term
+      let html = `<div style="margin-bottom: 8px; color: #666; font-size: 14px;">Showing <strong>${displayedTotal}</strong> course${displayedTotal !== 1 ? 's' : ''} for selected term</div>`;
+      
+      termsToDisplay.forEach(termGroup => {
+        const term = termGroup.term;
+        const enrollments = termGroup.enrollments;
+        
+        if (!term) {
+          return;
+        }
+        
+        html += `
+          <div class="term-group" data-term-id="${term.term_id}" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid #e8ecf2;">
+            <h3 style="font-size: 16px; margin-bottom: 12px; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>${term.term_name || `Term ${term.term_id}`}</span>
+              ${term.academic_year ? `<span style="font-size: 12px; color: #666; font-weight: normal;">(${term.academic_year})</span>` : ''}
+              <span class="chip" style="margin-left: auto;">${enrollments.length} course${enrollments.length !== 1 ? 's' : ''}</span>
+            </h3>
+            ${term.start_date && term.end_date ? `
+              <div style="font-size: 12px; color: #666; margin-bottom: 12px;">
+                ${new Date(term.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - 
+                ${new Date(term.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            ` : ''}
+            <div class="list" style="gap: 8px;">
+        `;
+        
+        enrollments.forEach(enrollment => {
+          const course = enrollment.course;
+          const grade = enrollment.grade;
+          const status = enrollment.status;
+          const enrolledDate = enrollment.enrolled_date ? new Date(enrollment.enrolled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A';
+          
+          // Determine status chip color
+          let statusChipClass = 'chip';
+          if (status === 'Completed') {
+            statusChipClass = 'chip success';
+          } else if (status === 'In Progress') {
+            statusChipClass = 'chip info';
+          } else if (status === 'Dropped' || status === 'Withdrawn') {
+            statusChipClass = 'chip danger';
+          }
+          
+          // Determine grade chip color
+          let gradeChipClass = 'chip';
+          if (grade && grade !== 'IP' && grade !== 'N/A') {
+            const gradeNum = parseFloat(grade);
+            if (!isNaN(gradeNum)) {
+              if (gradeNum >= 3.5) {
+                gradeChipClass = 'chip success';
+              } else if (gradeNum >= 2.5) {
+                gradeChipClass = 'chip warning';
+              } else {
+                gradeChipClass = 'chip danger';
+              }
+            }
+          }
+          
+          html += `
+            <div class="list-item" style="padding: 14px;">
+              <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px; color: #333;">
+                  ${course ? `${course.course_code || ''} - ${course.course_title || 'Unknown Course'}` : `Course ID: ${enrollment.course_id}`}
+                </div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 6px;">
+                  ${course ? `Credits: ${course.credits || 0} | Department: ${course.department || 'Unknown'}` : ''}
+                </div>
+                <div style="font-size: 12px; color: #999;">
+                  Enrolled: ${enrolledDate}
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span class="${gradeChipClass}">Grade: ${grade || 'N/A'}</span>
+                <span class="${statusChipClass}">${status || 'Unknown'}</span>
+              </div>
+            </div>
+          `;
+        });
+        
+        html += `
+            </div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+
+    async function loadStudentProfile(studentId) {
+      try {
+        const response = await fetch(`${window.location.origin}/api/data/students/${studentId}`);
+        if (!response.ok) {
+          throw new Error('Failed to load profile');
+        }
+        const student = await response.json();
+        
+        console.log('Student profile data received:', {
+          studentId: student.studentId,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          phone: student.phone,
+          major: student.major,
+          year: student.year,
+          advisor_id: student.advisor_id
+        });
+        
+        // If critical data is missing, try to sync with CSV
+        if ((!student.phone || student.phone === 'Not provided') && studentId) {
+          console.log('Student phone missing, attempting to sync with CSV...');
+          try {
+            const syncResponse = await fetch(`${window.location.origin}/api/data/sync-student/${studentId}`, {
+              method: 'POST'
+            });
+            if (syncResponse.ok) {
+              const syncedData = await syncResponse.json();
+              console.log('Student data synced:', syncedData);
+              // Reload profile after sync
+              return loadStudentProfile(studentId);
+            }
+          } catch (syncError) {
+            console.error('Error syncing student data:', syncError);
+          }
+        }
+        
+        // Display profile information - use CSV data as source of truth
+        document.getElementById('profile-name').textContent = `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Not provided';
+        document.getElementById('profile-email').textContent = student.email || 'Not provided';
+        document.getElementById('profile-phone').textContent = (student.phone && student.phone !== 'Not provided' && student.phone.trim() !== '') ? student.phone : 'Not provided';
+        document.getElementById('profile-major').textContent = student.major || 'Not provided';
+        document.getElementById('profile-year').textContent = student.year || 'Not provided';
+        
+        // Format address
+        const addr = student.address || {};
+        const addressParts = [];
+        if (addr.street) addressParts.push(addr.street);
+        if (addr.city) addressParts.push(addr.city);
+        if (addr.state) addressParts.push(addr.state);
+        if (addr.zipCode) addressParts.push(addr.zipCode);
+        if (addr.country) addressParts.push(addr.country);
+        document.getElementById('profile-address').textContent = addressParts.length > 0 ? addressParts.join(', ') : 'Not provided';
+        
+        // Populate edit form
+        document.getElementById('edit-name').value = `${student.firstName} ${student.lastName}`;
+        document.getElementById('edit-email').value = student.email || '';
+        document.getElementById('edit-phone').value = student.phone || '';
+        document.getElementById('edit-major').value = student.major || '';
+        document.getElementById('edit-year').value = student.year || 'First Year';
+        document.getElementById('edit-address-street').value = addr.street || '';
+        document.getElementById('edit-address-city').value = addr.city || '';
+        document.getElementById('edit-address-state').value = addr.state || '';
+        document.getElementById('edit-address-zip').value = addr.zipCode || '';
+        document.getElementById('edit-address-country').value = addr.country || 'USA';
+      } catch (error) {
+        console.error('Error loading student profile:', error);
+        document.getElementById('profile-name').textContent = 'Error loading profile';
+      }
+    }
+
+    function toggleHelpRequestForm() {
+      const helpRequestCard = document.getElementById('help-request-card');
+      if (helpRequestCard) {
+        if (helpRequestCard.style.display === 'none' || helpRequestCard.style.display === '') {
+          helpRequestCard.style.display = 'block';
+          // Scroll to the form
+          helpRequestCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          helpRequestCard.style.display = 'none';
+        }
+      }
+    }
+
+    function toggleProfileEdit() {
+      const display = document.getElementById('profile-display');
+      const edit = document.getElementById('profile-edit');
+      const btn = document.getElementById('edit-profile-btn');
+      
+      if (edit.style.display === 'none') {
+        display.style.display = 'none';
+        edit.style.display = 'block';
+        btn.textContent = 'View Profile';
+      } else {
+        display.style.display = 'block';
+        edit.style.display = 'none';
+        btn.textContent = 'Edit Profile';
+        // Reload profile to reset form
+        const studentId = localStorage.getItem('studentId');
+        if (studentId) loadStudentProfile(studentId);
+      }
+    }
+
+    async function saveProfile(event) {
+      event.preventDefault();
+      const studentId = localStorage.getItem('studentId');
+      if (!studentId) {
+        alert('Student ID not found. Please log in again.');
+        return;
+      }
+
+      try {
+        const form = event.target;
+        const formData = {
+          phone: document.getElementById('edit-phone').value,
+          major: document.getElementById('edit-major').value,
+          year: document.getElementById('edit-year').value,
+          address: {
+            street: document.getElementById('edit-address-street').value,
+            city: document.getElementById('edit-address-city').value,
+            state: document.getElementById('edit-address-state').value,
+            zipCode: document.getElementById('edit-address-zip').value,
+            country: document.getElementById('edit-address-country').value
+          }
+        };
+
+        const response = await fetch(`${window.location.origin}/api/auth/student/profile/${studentId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Failed to update profile');
+        }
+
+        alert('Profile updated successfully!');
+        toggleProfileEdit();
+        await loadStudentProfile(studentId);
+      } catch (error) {
+        console.error('Error saving profile:', error);
+        alert('Failed to update profile. Please try again. Error: ' + error.message);
       }
     }
   </script>
@@ -339,14 +1012,23 @@
     </div>
 
     <div class="grid">
-      <div class="left">
-        <div class="card" style="margin-bottom: 20px;">
-          <h2>Your Metrics</h2>
-          <div class="metrics">
-            <div class="metric"><div class="label">GPA</div><div class="value">3.8</div></div>
-            <div class="metric"><div class="label">Credits</div><div class="value">72/120</div></div>
-            <div class="metric"><div class="label">Attendance</div><div class="value">95%</div></div>
-            <div class="metric"><div class="label">Alerts</div><div class="value">0</div></div>
+      <div class="left-column">
+        <!-- Academic Metrics Section -->
+        <div class="card">
+          <h2>Academic Metrics</h2>
+          <div class="metrics-grid">
+            <div class="metric">
+              <div class="label">GPA</div>
+              <div class="value">3.8</div>
+            </div>
+            <div class="metric">
+              <div class="label">Credits</div>
+              <div class="value">72/120</div>
+            </div>
+            <div class="metric">
+              <div class="label">Attendance</div>
+              <div class="value">95%</div>
+            </div>
             <div class="metric" id="risk-metric">
               <div class="label">Risk Level</div>
               <div class="value" style="font-size: 16px; background-clip: unset; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background: unset; margin-top: 8px;">
@@ -356,9 +1038,48 @@
           </div>
         </div>
 
-        <div class="card">
-          <h2>Help Request</h2>
-          <form class="form" onsubmit="submitHelpRequest(event)">
+        <!-- Financial Information -->
+        <div class="card" id="financial-card" style="display: none;">
+          <h2>Financial Information</h2>
+          <div class="list" id="financial-info">
+            <div class="list-item">
+              <span><strong>Fee Balance:</strong> <span id="fee-balance">Loading...</span></span>
+              <span class="chip" id="balance-chip">-</span>
+            </div>
+            <div class="list-item">
+              <span><strong>Financial Aid Status:</strong> <span id="aid-status">Loading...</span></span>
+              <span class="chip" id="aid-chip">-</span>
+            </div>
+            <div class="list-item">
+              <span><strong>Last Payment Date:</strong> <span id="last-payment">Loading...</span></span>
+            </div>
+            <div class="list-item" id="overdue-item" style="display: none;">
+              <span><strong>Days Overdue:</strong> <span id="days-overdue" style="color: #dc2626; font-weight: 600;">0</span></span>
+              <span class="chip danger">Overdue</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course Enrollments -->
+        <div class="card" id="enrollments-card" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 style="margin: 0; border: none; padding: 0;">Course Enrollments</h2>
+            <select id="term-select" style="padding: 8px 12px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px; background: #fff; cursor: pointer;">
+              <option value="">Select a Term</option>
+            </select>
+          </div>
+          <div id="enrollments-container">
+            <div style="text-align: center; padding: 20px; color: #666;">Loading enrollments...</div>
+          </div>
+        </div>
+
+        <!-- Help Request Form (Hidden by default) -->
+        <div class="card" id="help-request-card" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 style="margin: 0; border: none; padding: 0;">Help Request</h2>
+            <button type="button" class="btn secondary" onclick="toggleHelpRequestForm()" style="padding: 8px 16px; font-size: 14px;">Close</button>
+          </div>
+          <form class="form" id="help-request-form" onsubmit="submitHelpRequest(event)">
             <div class="row">
               <div>
                 <label for="category">Category</label>
@@ -382,6 +1103,12 @@
               </div>
             </div>
             <div>
+              <label for="advisor-select">Select Advisor <span style="font-size: 12px; color: #6b7280;">(Your assigned advisor is pre-selected)</span></label>
+              <select id="advisor-select" name="advisorId" required>
+                <option value="">Loading advisors...</option>
+              </select>
+            </div>
+            <div>
               <label for="subject">Subject</label>
               <input id="subject" name="subject" placeholder="Brief summary" required />
             </div>
@@ -397,13 +1124,93 @@
         </div>
       </div>
 
-      <div class="right">
-        <div class="card" style="margin-bottom: 20px;">
+      <div class="right-column">
+        <!-- Profile Section -->
+        <div class="card">
+          <h2>My Profile</h2>
+          <div id="profile-section">
+            <button id="edit-profile-btn" class="btn secondary" style="width: 100%; margin-bottom: 12px;" onclick="toggleProfileEdit()">Edit Profile</button>
+            <div id="profile-display">
+              <div class="list-item"><strong>Name:</strong> <span id="profile-name">Loading...</span></div>
+              <div class="list-item"><strong>Email:</strong> <span id="profile-email">Loading...</span></div>
+              <div class="list-item"><strong>Phone:</strong> <span id="profile-phone">Loading...</span></div>
+              <div class="list-item"><strong>Major:</strong> <span id="profile-major">Loading...</span></div>
+              <div class="list-item"><strong>Year:</strong> <span id="profile-year">Loading...</span></div>
+              <div class="list-item"><strong>Address:</strong> <span id="profile-address">Loading...</span></div>
+            </div>
+            <div id="profile-edit" style="display: none;">
+              <form class="form" id="profile-edit-form" onsubmit="saveProfile(event)">
+                <div>
+                  <label>Name (cannot be changed)</label>
+                  <input type="text" id="edit-name" disabled style="background: #f3f4f6; cursor: not-allowed;" />
+                </div>
+                <div>
+                  <label>Email (cannot be changed)</label>
+                  <input type="email" id="edit-email" disabled style="background: #f3f4f6; cursor: not-allowed;" />
+                </div>
+                <div>
+                  <label for="edit-phone">Phone</label>
+                  <input type="tel" id="edit-phone" name="phone" placeholder="Enter phone number" />
+                </div>
+                <div>
+                  <label for="edit-major">Major</label>
+                  <input type="text" id="edit-major" name="major" placeholder="Enter major" />
+                </div>
+                <div>
+                  <label for="edit-year">Year</label>
+                  <select id="edit-year" name="year">
+                    <option value="First Year">First Year</option>
+                    <option value="Second Year">Second Year</option>
+                    <option value="Third Year">Third Year</option>
+                    <option value="Fourth Year">Fourth Year</option>
+                    <option value="Graduate">Graduate</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="edit-address-street">Street Address</label>
+                  <input type="text" id="edit-address-street" name="address.street" placeholder="Enter street address" />
+                </div>
+                <div class="row">
+                  <div>
+                    <label for="edit-address-city">City</label>
+                    <input type="text" id="edit-address-city" name="address.city" placeholder="City" />
+                  </div>
+                  <div>
+                    <label for="edit-address-state">State</label>
+                    <input type="text" id="edit-address-state" name="address.state" placeholder="State" />
+                  </div>
+                </div>
+                <div class="row">
+                  <div>
+                    <label for="edit-address-zip">Zip Code</label>
+                    <input type="text" id="edit-address-zip" name="address.zipCode" placeholder="Zip Code" />
+                  </div>
+                  <div>
+                    <label for="edit-address-country">Country</label>
+                    <input type="text" id="edit-address-country" name="address.country" placeholder="Country" value="USA" />
+                  </div>
+                </div>
+                <div class="actions">
+                  <button type="button" class="btn secondary" onclick="toggleProfileEdit()">Cancel</button>
+                  <button type="submit" class="btn primary">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advisor Section -->
+        <div class="card">
           <h2>My Advisor</h2>
           <div id="my-advisor" class="list">
             <div class="loading">Loading advisor information...</div>
           </div>
+          <button type="button" class="btn primary" onclick="toggleHelpRequestForm()" style="width: 100%; margin-top: 16px; padding: 12px;">
+            Contact Advisor
+          </button>
         </div>
+
+        <!-- Notifications -->
         <div class="card">
           <h2>Notifications</h2>
           <div class="list">

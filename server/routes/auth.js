@@ -264,38 +264,83 @@ router.post('/student/register', async (req, res) => {
       });
     }
 
-    // Check if student ID already exists in MongoDB
-    const existingStudent = await Student.findOne({ studentId: parseInt(studentId) });
+    // Validate against CSV file - student must exist in students.csv
+    const students = csvParser.parseCSV('students.csv');
+    const parsedStudentId = parseInt(studentId);
+    
+    // Find student in CSV by student_id
+    const csvStudent = students.find(s => {
+      const sId = s.student_id || s.studentId;
+      return sId == parsedStudentId || sId === parsedStudentId || String(sId) === String(parsedStudentId);
+    });
+
+    if (!csvStudent) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Student ID not found in our records. Please use a valid student ID from the system.' 
+      });
+    }
+
+    // Validate name matches CSV (case-insensitive comparison)
+    const csvFullName = `${csvStudent.first_name} ${csvStudent.last_name}`.trim().toLowerCase();
+    const providedFullName = fullName.trim().toLowerCase();
+    
+    if (csvFullName !== providedFullName) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Name does not match our records. Please use: ${csvStudent.first_name} ${csvStudent.last_name}` 
+      });
+    }
+
+    // Validate email matches CSV (case-insensitive comparison)
+    const csvEmail = (csvStudent.email || '').trim().toLowerCase();
+    const providedEmail = email.trim().toLowerCase();
+    
+    if (csvEmail !== providedEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Email does not match our records. Please use: ${csvStudent.email}` 
+      });
+    }
+
+    // Check if student ID already exists in MongoDB (already registered)
+    const existingStudent = await Student.findOne({ studentId: parsedStudentId });
     if (existingStudent) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Student ID already exists' 
+        error: 'This student ID is already registered. Please log in instead.' 
       });
     }
 
     // Check if email already exists in MongoDB
-    const existingEmail = await Student.findOne({ email: email.toLowerCase() });
+    const existingEmail = await Student.findOne({ email: csvEmail });
     if (existingEmail) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Email already registered' 
+        error: 'This email is already registered. Please log in instead.' 
       });
     }
 
-    // Parse full name
-    const nameParts = fullName.trim().split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || 'Not provided';
+    // Use data from CSV instead of user input
+    const firstName = csvStudent.first_name || '';
+    const lastName = csvStudent.last_name || 'Not provided';
+    const csvMajor = csvStudent.major || major; // Use CSV major, fallback to provided
+    const csvYear = csvStudent.year || 'First Year';
+    const csvPhone = csvStudent.phone || 'Not provided';
+    const csvEnrollmentStatus = csvStudent.enrollment_status || 'Enrolled';
+    const csvBirthDate = csvStudent.birth_date ? new Date(csvStudent.birth_date) : null;
 
-    // Create new student in MongoDB
+    // Create new student in MongoDB using CSV data
     const newStudent = new Student({
-      studentId: parseInt(studentId),
+      studentId: parsedStudentId,
       firstName: firstName,
       lastName: lastName,
-      email: email.toLowerCase(),
-      major: major,
-      year: 'First Year',
-      enrollmentStatus: 'Enrolled',
+      email: csvEmail,
+      phone: csvPhone,
+      major: csvMajor,
+      year: csvYear,
+      birthDate: csvBirthDate,
+      enrollmentStatus: csvEnrollmentStatus,
       password: password,
       academic: {
         gpa: 0,
@@ -313,6 +358,27 @@ router.post('/student/register', async (req, res) => {
     });
 
     await newStudent.save();
+
+    // Assign advisor from CSV advisor_id if available
+    if (csvStudent.advisor_id) {
+      try {
+        const advisor = await Advisor.findOne({ advisorId: parseInt(csvStudent.advisor_id) });
+        if (advisor) {
+          newStudent.assignedAdvisor = advisor._id;
+          await newStudent.save();
+          
+          // Update advisor's assigned students list
+          if (!advisor.assignedStudents.includes(newStudent._id)) {
+            advisor.assignedStudents.push(newStudent._id);
+            advisor.currentStudents = advisor.assignedStudents.length;
+            await advisor.save();
+          }
+        }
+      } catch (error) {
+        console.error('Error assigning advisor during registration:', error);
+        // Continue even if advisor assignment fails
+      }
+    }
 
     res.json({
       success: true,
@@ -447,6 +513,154 @@ router.get('/verify/:token', (req, res) => {
     user: session.userData,
     type: session.type
   });
+});
+
+// Update student profile (excluding email and name)
+router.put('/student/profile/:studentId', async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const parsedStudentId = parseInt(studentId);
+    
+    if (!parsedStudentId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid student ID' 
+      });
+    }
+
+    const student = await Student.findOne({ studentId: parsedStudentId });
+    
+    if (!student) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Student not found' 
+      });
+    }
+
+    // Extract allowed fields (exclude email, firstName, lastName, studentId, password)
+    const allowedFields = ['phone', 'major', 'year', 'birthDate', 'enrollmentStatus', 
+                          'address', 'housing', 'academic', 'financial'];
+    
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    }
+
+    // Handle nested address fields
+    if (req.body.address) {
+      updateData.address = {
+        street: req.body.address.street || student.address?.street || '',
+        city: req.body.address.city || student.address?.city || '',
+        state: req.body.address.state || student.address?.state || '',
+        zipCode: req.body.address.zipCode || student.address?.zipCode || '',
+        country: req.body.address.country || student.address?.country || 'USA'
+      };
+    }
+
+    // Update student
+    Object.assign(student, updateData);
+    await student.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      student: {
+        studentId: student.studentId,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        phone: student.phone,
+        address: student.address,
+        major: student.major,
+        year: student.year,
+        enrollmentStatus: student.enrollmentStatus,
+        housing: student.housing
+      }
+    });
+  } catch (error) {
+    console.error('Error updating student profile:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Update advisor profile (excluding email and name)
+router.put('/advisor/profile/:advisorId', async (req, res) => {
+  try {
+    const { advisorId } = req.params;
+    const parsedAdvisorId = parseInt(advisorId);
+    
+    if (!parsedAdvisorId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid advisor ID' 
+      });
+    }
+
+    const advisor = await Advisor.findOne({ advisorId: parsedAdvisorId });
+    
+    if (!advisor) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Advisor not found' 
+      });
+    }
+
+    // Extract allowed fields (exclude email, firstName, lastName, advisorId, password)
+    const allowedFields = ['phone', 'department', 'specialization', 'title', 
+                          'officeLocation', 'officeHours', 'address', 'isAvailable'];
+    
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    }
+
+    // Handle nested address fields
+    if (req.body.address) {
+      updateData.address = {
+        street: req.body.address.street || advisor.address?.street || '',
+        city: req.body.address.city || advisor.address?.city || '',
+        state: req.body.address.state || advisor.address?.state || '',
+        zipCode: req.body.address.zipCode || advisor.address?.zipCode || '',
+        country: req.body.address.country || advisor.address?.country || 'USA'
+      };
+    }
+
+    // Update advisor
+    Object.assign(advisor, updateData);
+    await advisor.save();
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      advisor: {
+        advisorId: advisor.advisorId,
+        firstName: advisor.firstName,
+        lastName: advisor.lastName,
+        email: advisor.email,
+        phone: advisor.phone,
+        address: advisor.address,
+        department: advisor.department,
+        specialization: advisor.specialization,
+        title: advisor.title,
+        officeLocation: advisor.officeLocation,
+        officeHours: advisor.officeHours,
+        isAvailable: advisor.isAvailable
+      }
+    });
+  } catch (error) {
+    console.error('Error updating advisor profile:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
 });
 
 // Logout endpoint

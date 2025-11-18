@@ -59,6 +59,20 @@ app.use('/api/data', require('./routes/data'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/migration', require('./routes/migration'));
 
+// Notifications route with error handling
+try {
+  const notificationsRouter = require('./routes/notifications');
+  app.use('/api/notifications', notificationsRouter);
+  console.log('✅ Notifications route registered at /api/notifications');
+  console.log('   Available endpoints:');
+  console.log('   - GET /api/notifications/test');
+  console.log('   - GET /api/notifications/debug/all');
+  console.log('   - GET /api/notifications?advisorId=XXX');
+} catch (error) {
+  console.error('❌ Error loading notifications route:', error);
+  console.error('Error stack:', error.stack);
+}
+
 // MongoDB connection function
 async function connectDB() {
   if (!MONGODB_URI) {

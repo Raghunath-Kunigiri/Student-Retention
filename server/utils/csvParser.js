@@ -32,9 +32,13 @@ class CSVParser {
         headers.forEach((header, index) => {
           let value = values[index] || '';
           
-          // Convert numeric values
-          if (!isNaN(value) && value !== '') {
-            if (value.includes('.')) {
+          // Convert numeric values (but skip phone, email, and other text fields)
+          const numericFields = ['student_id', 'advisor_id', 'gpa', 'credits', 'fee_balance', 'scholarship_amount', 'days_overdue', 'financial_id', 'course_id', 'term_id', 'enrollment_id'];
+          if (numericFields.includes(header) && !isNaN(value) && value !== '' && !value.includes('-') && !value.includes('@')) {
+            // Special handling for days_overdue - it might have dashes in date context, but we want to parse it
+            if (header === 'days_overdue') {
+              value = parseInt(value) || 0;
+            } else if (value.includes('.')) {
               value = parseFloat(value);
             } else {
               value = parseInt(value);

@@ -1,23 +1,23 @@
 course_id,course_code,course_title,credits,department,description
-1,CS101,Principles of Programming,3,Computer Science,The three seven red along.
-2,CS110,Object-Oriented Programming,3,Computer Science,Sister friend across keep.
-3,CS210,Data Structures and Algorithms,3,Computer Science,Almost out behind military born result feel also.
-4,CS220,Programming Practicum,4,Computer Science,Plan certainly total remember product.
-5,CS340,Computer Networks,4,Computer Science,Partner his notice man.
-6,CS350,Database Systems,4,Computer Science,Debate senior Republican thus computer election word Republican.
-7,CS360,Object-Oriented Software Design,4,Computer Science,Six compare use serve lawyer answer notice.
-8,CS401,Web Programming,4,Computer Science,Necessary official ground everybody.
-9,CS415,Big Data,3,Computer Science,Including free great people attack loss.
-10,CS420,Computer Vision,4,Computer Science,Himself product fight.
-11,CS430,Parallel Programming,3,Computer Science,Anyone require travel buy well above.
-12,CS440,Distributed System,4,Computer Science,Science try middle action natural prove.
-13,CS450,Operating Systems,4,Computer Science,Should let effect develop.
-14,CS460,Artificial Intelligence (AI),3,Computer Science,Future hear else method.
-15,CS470,Applied Machine Learning (ML),4,Computer Science,Drop quite ahead fear reach.
-16,CS471,Machine Learning,3,Computer Science,Stock white woman seem be major.
-17,CS480,Computer Graphics,3,Computer Science,Everybody day edge song raise my contain require.
-18,CS481,Natural Language Processing,3,Computer Science,Physical ground me much right few.
-19,CS485,Autonomous Driving,4,Computer Science,Understand of hope better cell same win.
-20,CS495,Internship with Industry,3,Computer Science,Idea energy anything.
-21,CS498,Special Topics,3,Computer Science,Which long field parent spring understand give.
-22,CS499,Computing and Society,3,Computer Science,Despite team pressure Republican.
+1,CS101,Principles of Programming,4,Computer Science,topic based data applications for science applications
+2,CS110,Object-Oriented Programming,4,Computer Science,applications course learning machine This is structures topic
+3,CS210,Data Structures and Algorithms,4,Computer Science,a and description and course
+4,CS220,Programming Practicum,3,Computer Science,computer on a computer structures computer learning
+5,CS340,Computer Networks,4,Computer Science,synthetic machine principles learning learning synthetic
+6,CS350,Database Systems,3,Computer Science,course a applications learning a machine
+7,CS360,Object-Oriented Software Design,4,Computer Science,learning applications for applications topic applications on applications
+8,CS401,Web Programming,3,Computer Science,structures for applications based description is
+9,CS415,Big Data,4,Computer Science,structures course description for a data This is
+10,CS420,Computer Vision,3,Computer Science,for and This machine computer
+11,CS430,Parallel Programming,3,Computer Science,for machine structures principles science based computer for
+12,CS440,Distributed System,4,Computer Science,synthetic and course science computer and and principles
+13,CS450,Operating Systems,4,Computer Science,machine for is course structures a structures This for for
+14,CS460,Artificial Intelligence (AI),4,Computer Science,for applications description machine for for
+15,CS470,Applied Machine Learning (ML),3,Computer Science,description computer topic on data based
+16,CS471,Machine Learning,3,Computer Science,applications a and data structures a a data description machine
+17,CS480,Computer Graphics,3,Computer Science,topic principles for for for principles learning description
+18,CS481,Natural Language Processing,4,Computer Science,science synthetic course applications and on data
+19,CS485,Autonomous Driving,3,Computer Science,machine description data structures structures computer data
+20,CS495,Internship with Industry,4,Computer Science,a data science a for on for principles principles computer
+21,CS498,Special Topics,3,Computer Science,and data learning course computer
+22,CS499,Computing and Society,3,Computer Science,structures a synthetic applications learning and for a and applications
