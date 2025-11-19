@@ -58,6 +58,8 @@ app.use('/api/entries', require('./routes/entries'));
 app.use('/api/data', require('./routes/data'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/migration', require('./routes/migration'));
+app.use('/api/student-notifications', require('./routes/studentNotifications'));
+app.use('/api/google-forms', require('./routes/googleForms'));
 
 // Notifications route with error handling
 try {

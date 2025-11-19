@@ -142,6 +142,26 @@ router.get('/unread-count', async (req, res) => {
   }
 });
 
+// Update notification (for adding entryId, etc.)
+router.patch('/:id', async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    res.json(notification);
+  } catch (err) {
+    console.error('Error updating notification:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Mark notification as read
 router.patch('/:id/read', async (req, res) => {
   try {

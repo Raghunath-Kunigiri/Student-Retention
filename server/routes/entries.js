@@ -1,7 +1,9 @@
 const express = require('express');
 const Entry = require('../models/Entry');
 const Notification = require('../models/Notification');
+const StudentNotification = require('../models/StudentNotification');
 const Reply = require('../models/Reply');
+const Message = require('../models/Message');
 const Student = require('../models/Student');
 const Advisor = require('../models/Advisor');
 const { sendHelpRequestNotification } = require('../utils/emailService');
@@ -198,6 +200,106 @@ router.post('/', async (req, res) => {
         console.error('❌ Error creating notification:', notifError);
         console.error('Error stack:', notifError.stack);
       }
+    } else if (entry.type === 'advisor-contact' && entry.data && entry.data.studentId && entry.data.advisorId) {
+      // Handle advisor-to-student contact
+      try {
+        console.log(`📝 Processing advisor contact to student ${entry.data.studentId}`);
+        
+        // Find the student
+        const student = await Student.findOne({ studentId: entry.data.studentId });
+        
+        if (!student) {
+          console.warn(`⚠️ Student ${entry.data.studentId} not found in database`);
+          return res.status(201).json({
+            ...entry.toObject(),
+            notificationCreated: false,
+            warning: 'Student not found in database'
+          });
+        }
+
+        console.log(`✅ Found student: ${student.firstName} ${student.lastName}`);
+
+        // Find the advisor
+        let advisor = null;
+        const advisorId = entry.data.advisorId;
+        
+        // Try to find advisor by advisorId (number) or _id (ObjectId)
+        if (typeof advisorId === 'string' && advisorId.match(/^[0-9a-fA-F]{24}$/)) {
+          // It's an ObjectId
+          advisor = await Advisor.findById(advisorId);
+        } else {
+          // Try to find by advisorId number or check CSV
+          const advisorIdNum = parseInt(advisorId);
+          if (!isNaN(advisorIdNum)) {
+            advisor = await Advisor.findOne({ advisorId: advisorIdNum });
+          }
+        }
+        
+        // If not found in MongoDB, check CSV
+        if (!advisor) {
+          console.log(`⚠️ Advisor not found in MongoDB, checking CSV...`);
+          const advisors = csvParser.parseCSV('advisors.csv');
+          const csvAdvisor = advisors.find(a => {
+            const aId = a.advisor_id || a.advisorId;
+            return aId == advisorId || aId === advisorId || String(aId) === String(advisorId);
+          });
+          
+          if (csvAdvisor) {
+            console.log(`✅ Found advisor in CSV, creating MongoDB record...`);
+            advisor = new Advisor({
+              advisorId: csvAdvisor.advisor_id || csvAdvisor.advisorId,
+              firstName: csvAdvisor.first_name || csvAdvisor.firstName || '',
+              lastName: csvAdvisor.last_name || csvAdvisor.lastName || '',
+              email: csvAdvisor.email || '',
+              department: csvAdvisor.department || '',
+              isActive: true
+            });
+            await advisor.save();
+            console.log(`✅ Created advisor in MongoDB: ${advisor.fullName}`);
+          }
+        }
+
+        if (!advisor) {
+          console.error(`❌ Advisor not found for ID: ${advisorId}`);
+          return res.status(201).json({
+            ...entry.toObject(),
+            notificationCreated: false,
+            warning: 'Advisor not found in database'
+          });
+        }
+
+        console.log(`✅ Found advisor: ${advisor.firstName} ${advisor.lastName}`);
+
+        // Create student notification
+        const studentNotification = await StudentNotification.create({
+          studentId: entry.data.studentId,
+          advisorId: advisor._id,
+          advisorName: `${advisor.firstName} ${advisor.lastName}`,
+          advisorEmail: advisor.email || '',
+          type: 'advisor-contact',
+          title: `Message from Your Advisor: ${entry.data.subject || 'No Subject'}`,
+          message: entry.data.message || '',
+          entryId: entry._id,
+          data: {
+            subject: entry.data.subject,
+            category: entry.data.category,
+            urgency: entry.data.urgency,
+            message: entry.data.message
+          },
+          isRead: false
+        });
+
+        notificationCreated = true;
+        notificationData = studentNotification;
+        
+        console.log(`✅ Student notification created with ID: ${studentNotification._id}`);
+        console.log(`   Student: ${student.firstName} ${student.lastName} (${student.email})`);
+        console.log(`   Advisor: ${advisor.firstName} ${advisor.lastName}`);
+      } catch (notifError) {
+        console.error('❌ Error creating student notification:', notifError);
+        console.error('   Error stack:', notifError.stack);
+        // Don't fail the entry creation, just log the error
+      }
     } else {
       console.log(`ℹ️ Entry type is "${entry.type}", skipping notification creation`);
     }
@@ -208,8 +310,10 @@ router.post('/', async (req, res) => {
       notificationCreated,
       notification: notificationData,
       message: notificationCreated 
-        ? `Request saved and notification sent to advisor` 
-        : `Request saved${entry.type === 'help-request' ? ' but notification could not be created' : ''}`
+        ? (entry.type === 'help-request' 
+            ? `Request saved and notification sent to advisor` 
+            : `Message sent and notification created for student`)
+        : `Request saved${entry.type === 'help-request' ? ' but notification could not be created' : entry.type === 'advisor-contact' ? ' but notification could not be created' : ''}`
     });
   } catch (err) {
     console.error('❌ Error creating entry:', err);
@@ -369,6 +473,139 @@ router.delete('/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// Get messages for a conversation (entry)
+router.get('/:id/messages', async (req, res) => {
+  try {
+    const entryId = req.params.id;
+    const messages = await Message.find({ conversationId: entryId })
+      .sort({ createdAt: 1 })
+      .limit(200);
+    
+    res.json({ messages });
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send a message in a conversation
+router.post('/:id/messages', async (req, res) => {
+  try {
+    const entryId = req.params.id;
+    const { senderType, senderId, senderName, message } = req.body;
+    
+    if (!senderType || !senderId || !senderName || !message) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (!['student', 'advisor'].includes(senderType)) {
+      return res.status(400).json({ error: 'Invalid senderType. Must be "student" or "advisor"' });
+    }
+    
+    // Verify entry exists
+    const entry = await Entry.findById(entryId);
+    if (!entry) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+    
+    // Create message
+    const newMessage = await Message.create({
+      conversationId: entryId,
+      senderType,
+      senderId,
+      senderName,
+      message,
+      isRead: false
+    });
+    
+    // Mark other messages in conversation as read for the recipient
+    // (if advisor sends, mark unread student messages as read, and vice versa)
+    const recipientType = senderType === 'student' ? 'advisor' : 'student';
+    await Message.updateMany(
+      { 
+        conversationId: entryId, 
+        senderType: recipientType,
+        isRead: false 
+      },
+      { 
+        isRead: true,
+        readAt: new Date()
+      }
+    );
+    
+    // Create notification for the recipient
+    if (senderType === 'student') {
+      // Student sent message, notify advisor
+      const entryData = entry.data || {};
+      const advisorId = entryData.advisorId;
+      
+      if (advisorId) {
+        let advisor = await Advisor.findById(advisorId) || 
+                     await Advisor.findOne({ advisorId: parseInt(advisorId) });
+        
+        if (advisor) {
+          await Notification.create({
+            advisorId: advisor._id,
+            studentId: entryData.studentId,
+            studentName: entryData.fullName || senderName,
+            studentEmail: entryData.email || '',
+            type: 'help-request',
+            title: `New Message: ${entryData.subject || 'Conversation'}`,
+            message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+            entryId: entryId,
+            data: {
+              ...entryData,
+              hasNewMessage: true
+            },
+            isRead: false
+          });
+        }
+      }
+    } else {
+      // Advisor sent message, notify student
+      const entryData = entry.data || {};
+      const studentId = entryData.studentId;
+      
+      if (studentId) {
+        const student = await Student.findOne({ studentId: parseInt(studentId) });
+        
+        if (student) {
+          let advisor = await Advisor.findById(senderId);
+          if (!advisor) {
+            advisor = await Advisor.findOne({ advisorId: parseInt(senderId) });
+          }
+          
+          if (advisor) {
+            await StudentNotification.create({
+              studentId: parseInt(studentId),
+              advisorId: advisor._id,
+              advisorName: advisor.fullName || senderName,
+              advisorEmail: advisor.email || '',
+              type: 'advisor-contact',
+              title: `New Message: ${entryData.subject || 'Conversation'}`,
+              message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+              entryId: entryId,
+              data: {
+                ...entryData,
+                hasNewMessage: true
+              },
+              isRead: false
+            });
+          }
+        }
+      }
+    }
+    
+    res.status(201).json({ 
+      success: true, 
+      message: newMessage 
+    });
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

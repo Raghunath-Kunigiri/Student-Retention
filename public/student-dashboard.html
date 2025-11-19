@@ -32,6 +32,30 @@
       max-width: 1100px;
     }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .notification-badge { 
+      position: absolute; 
+      top: 0; 
+      right: 0; 
+      background: #ef4444; 
+      color: white; 
+      border-radius: 50%; 
+      width: 18px; 
+      height: 18px; 
+      font-size: 11px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-weight: 600;
+      animation: pulse 0.5s ease-in-out;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    .notification-item.unread {
+      border-left: 4px solid #3b82f6 !important;
+    }
     .title {
       display: flex; gap: 12px; align-items: center;
     }
@@ -219,8 +243,6 @@
         const studentId = localStorage.getItem('studentId');
         if (tabId === 'courses' && studentId) {
           loadEnrollments(studentId);
-        } else if (tabId === 'advisor' && studentId) {
-          loadHelpRequests(studentId);
         }
       }
     }
@@ -290,7 +312,7 @@
       // Load financial information
       await loadFinancialData(studentId);
       
-      // Note: Course enrollments and help requests will load when their tabs are opened
+      // Note: Course enrollments will load when the courses tab is opened
     });
 
     // Function to calculate risk level based on GPA and financial status
@@ -350,7 +372,9 @@
           
           const gpa = parseFloat(student.academic?.gpa) || 0;
           const credits = parseInt(student.academic?.creditsEarned) || parseInt(student.academic?.credits) || 0;
-          const absences = parseInt(student.academic?.attendanceAbsences) || 0;
+          // Get absences - handle both snake_case and camelCase field names
+          const absences = parseInt(student.academic?.attendanceAbsences) || 
+                          parseInt(student.academic?.attendance_absences) || 0;
           const financialData = student.financial || {};
           
           // Calculate risk level
@@ -373,12 +397,22 @@
             creditsElements[1].textContent = `${credits}/120`;
           }
           
-          // Calculate attendance percentage
+          // Calculate attendance percentage based on 5-month term
+          // Assuming 2-3 classes per week for 5 months (20 weeks) = ~50 total class days
+          const TOTAL_CLASS_DAYS = 50;
           const attendanceElements = document.querySelectorAll('.metrics-grid .metric .value');
           if (attendanceElements.length > 2) {
-            // Simple calculation: 100% - (absences * some factor)
-            const attendancePercent = Math.max(0, Math.min(100, 100 - (absences * 2)));
+            const attendedClasses = Math.max(0, TOTAL_CLASS_DAYS - absences);
+            const attendancePercent = TOTAL_CLASS_DAYS > 0 
+              ? Math.max(0, Math.min(100, (attendedClasses / TOTAL_CLASS_DAYS) * 100))
+              : 100;
             attendanceElements[2].textContent = `${Math.round(attendancePercent)}%`;
+            console.log('Attendance calculation:', {
+              totalClasses: TOTAL_CLASS_DAYS,
+              absences: absences,
+              attendedClasses: attendedClasses,
+              attendancePercent: Math.round(attendancePercent)
+            });
           }
           
           // Display risk level metric
@@ -644,9 +678,6 @@
         
         // Close the form after successful submission
         toggleHelpRequestForm();
-        
-        // Reload help requests to show the new one
-        await loadHelpRequests(localStorage.getItem('studentId'));
       } catch(err){
         console.error('❌ Error submitting request:', err);
         alert('Failed to submit. Please try again. Error: ' + err.message);
@@ -1071,133 +1102,19 @@
       }
     }
 
-    async function loadHelpRequests(studentId) {
-      const requestsList = document.getElementById('help-requests-list');
-      if (!requestsList) return;
 
-      try {
-        console.log('📋 Loading help requests for student:', studentId);
-        const response = await fetch(`${window.location.origin}/api/entries?studentId=${studentId}&type=help-request&includeReplies=true`);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('❌ Failed to load help requests:', response.status, errorData);
-          throw new Error(errorData.error || `Failed to load help requests (${response.status})`);
-        }
+    function getTimeAgo(date) {
+      const now = new Date();
+      const diff = now - date;
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
 
-        const requests = await response.json();
-        console.log('✅ Loaded help requests:', requests.length);
-
-        if (requests.length === 0) {
-          requestsList.innerHTML = '<div class="list-item" style="text-align: center; color: #6b7280; padding: 20px;">No help requests yet. Click "Contact Advisor" to submit a request.</div>';
-          return;
-        }
-
-        requestsList.innerHTML = requests.map(request => {
-          const date = new Date(request.createdAt);
-          const dateStr = date.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          
-          const hasReply = request.reply && request.reply.contactMethod;
-          const replyDate = hasReply && request.reply.repliedAt ? new Date(request.reply.repliedAt) : null;
-          const replyDateStr = replyDate ? replyDate.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-          }) : '';
-          
-          console.log('Request:', {
-            id: request._id,
-            subject: request.data?.subject,
-            hasReply: hasReply,
-            reply: request.reply
-          });
-          
-          return `
-            <div style="margin-bottom: 20px; border: 2px solid ${hasReply ? '#22c55e' : '#e5e7eb'}; border-radius: 12px; overflow: hidden; background: #fff;">
-              <!-- Your Request Section -->
-              <div style="padding: 16px; background: ${hasReply ? '#f9fafb' : '#fff'}; border-bottom: ${hasReply ? '2px solid #e5e7eb' : 'none'};">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                  <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                      <span style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase;">Your Request</span>
-                      <span class="chip" style="background: #e0e7ff; color: #3730a3; font-size: 11px;">${escapeHtml(request.data?.category || 'General')}</span>
-                      <span class="chip" style="background: ${request.data?.urgency === 'High' ? '#fee2e2' : request.data?.urgency === 'Normal' ? '#fef3c7' : '#d1fae5'}; color: ${request.data?.urgency === 'High' ? '#991b1b' : request.data?.urgency === 'Normal' ? '#92400e' : '#166534'}; font-size: 11px;">${escapeHtml(request.data?.urgency || 'Normal')}</span>
-                    </div>
-                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 15px;">${escapeHtml(request.data?.subject || 'No Subject')}</div>
-                    <div style="font-size: 12px; color: #6b7280;">Submitted: ${dateStr}</div>
-                  </div>
-                </div>
-                <div style="font-size: 13px; color: #374151; line-height: 1.6; white-space: pre-wrap; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
-                  ${escapeHtml(request.data?.details || 'No details provided')}
-                </div>
-              </div>
-              
-              <!-- Advisor Reply Section -->
-              ${hasReply ? `
-                <div style="padding: 16px; background: #f0fdf4; border-top: 3px solid #22c55e;">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                    <span style="font-size: 20px;">✓</span>
-                    <span style="font-size: 13px; font-weight: 600; color: #166534; text-transform: uppercase;">Reply from Your Advisor</span>
-                    ${replyDateStr ? `<span style="font-size: 11px; color: #6b7280; margin-left: auto;">${replyDateStr}</span>` : ''}
-                  </div>
-                  <div style="background: #fff; padding: 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
-                    <div style="font-size: 13px; color: #15803d; line-height: 1.8;">
-                      <div style="margin-bottom: 8px;">
-                        <strong style="color: #166534;">Contact Method:</strong> 
-                        <span style="color: #374151;">${escapeHtml(request.reply.contactMethod)}</span>
-                      </div>
-                      <div style="margin-bottom: 8px;">
-                        <strong style="color: #166534;">When:</strong> 
-                        <span style="color: #374151;">${escapeHtml(request.reply.timing)}</span>
-                      </div>
-                      ${request.reply.message ? `
-                        <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #bbf7d0;">
-                          <strong style="color: #166534; display: block; margin-bottom: 6px;">Message:</strong>
-                          <div style="color: #374151; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(request.reply.message)}</div>
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-                </div>
-              ` : `
-                <div style="padding: 16px; background: #fff; text-align: center;">
-                  <div style="font-size: 13px; color: #6b7280; font-style: italic; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <span>⏳</span>
-                    <span>Waiting for advisor response...</span>
-                  </div>
-                </div>
-              `}
-            </div>
-          `;
-        }).join('');
-      } catch (error) {
-        console.error('❌ Error loading help requests:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          studentId: studentId
-        });
-        
-        // Show more helpful error message
-        const errorMsg = error.message || 'Unknown error occurred';
-        requestsList.innerHTML = `
-          <div class="list-item" style="color: #dc2626; padding: 16px; text-align: center;">
-            <div style="margin-bottom: 8px;">⚠️ Error loading help requests</div>
-            <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">${escapeHtml(errorMsg)}</div>
-            <button class="btn primary" onclick="loadHelpRequests('${studentId}')" style="padding: 8px 16px; font-size: 13px;">
-              Try Again
-            </button>
-          </div>
-        `;
-      }
+      if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+      if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+      if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+      return 'just now';
     }
 
     function toggleProfileEdit() {
@@ -1278,13 +1195,15 @@
           <small>Student Dashboard</small>
         </div>
       </div>
-      <a class="signout" href="index.html" onclick="
-        localStorage.clear();
-        sessionStorage.clear();
-        // Prevent back button access
-        window.location.replace('index.html');
-        return false;
-      ">Sign out</a>
+      <div class="header-actions">
+        <a class="signout" href="index.html" onclick="
+          localStorage.clear();
+          sessionStorage.clear();
+          // Prevent back button access
+          window.location.replace('index.html');
+          return false;
+        ">Sign out</a>
+      </div>
     </div>
 
     <!-- Navigation Tabs -->
@@ -1446,77 +1365,37 @@
     <div id="advisor" class="tab-content">
       <div class="grid">
         <div class="left-column">
-          <!-- Advisor Section -->
+          <!-- Advisor Information Section -->
           <div class="card">
             <h2>My Advisor</h2>
             <div id="my-advisor" class="list">
               <div class="loading">Loading advisor information...</div>
             </div>
-            <button type="button" class="btn primary" onclick="toggleHelpRequestForm()" style="width: 100%; margin-top: 16px; padding: 12px;">
-              Contact Advisor
-            </button>
-          </div>
-
-          <!-- Help Request Form (Hidden by default) -->
-          <div class="card" id="help-request-card" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h2 style="margin: 0; border: none; padding: 0;">Help Request</h2>
-              <button type="button" class="btn secondary" onclick="toggleHelpRequestForm()" style="padding: 8px 16px; font-size: 14px;">Close</button>
-            </div>
-            <form class="form" id="help-request-form" onsubmit="submitHelpRequest(event)">
-              <div class="row">
-                <div>
-                  <label for="category">Category</label>
-                  <select id="category" name="category" required>
-                    <option value="">Select category</option>
-                    <option>Housing</option>
-                    <option>Academics</option>
-                    <option>Classes</option>
-                    <option>Financial</option>
-                    <option>Health & Wellness</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="urgency">Urgency</label>
-                  <select id="urgency" name="urgency" required>
-                    <option>Low</option>
-                    <option>Normal</option>
-                    <option>High</option>
-                  </select>
-                </div>
-              </div>
-              <input type="hidden" id="advisor-select" name="advisorId" value="">
-              <div style="padding: 12px; background: #f3f4f6; border-radius: 8px; margin-bottom: 16px;">
-                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Your request will be sent to:</div>
-                <div id="assigned-advisor-display" style="font-weight: 600; color: #1f2937;">Loading your assigned advisor...</div>
-              </div>
-              <div>
-                <label for="subject">Subject</label>
-                <input id="subject" name="subject" placeholder="Brief summary" required />
-              </div>
-              <div>
-                <label for="details">Details</label>
-                <textarea id="details" name="details" placeholder="Describe the issue..." required></textarea>
-              </div>
-              <div class="actions">
-                <button type="reset" class="btn secondary">Clear</button>
-                <button type="submit" class="btn primary">Submit Request</button>
-              </div>
-            </form>
           </div>
         </div>
 
-        <div class="right-column">
-          <!-- My Help Requests Section -->
+        <!-- <div class="right-column">
+          <!-- Quick Access Card -->
           <div class="card">
-            <h2>My Help Requests</h2>
-            <div id="help-requests-list" class="list">
-              <div class="loading">Loading your help requests...</div>
+            <h2>Submit Help Request</h2>
+            <div style="margin-bottom: 16px;">
+              <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+                Need assistance? Fill out the help request form below or open it in a new tab for a better experience.
+              </p>
+              <a id="google-form-link" href="https://docs.google.com/forms/d/e/1FAIpQLSebp84wxfeTK-Z5vhjprJv5xU7h6PhKFZ6z0EwvTamH-iitcA/viewform" target="_blank" class="btn primary" style="width: 100%; padding: 12px; text-align: center; text-decoration: none; display: block; margin-bottom: 12px;">
+                📝 Open Form in New Tab
+              </a>
+            </div>
+            <div style="padding: 12px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 6px;">
+              <div style="font-size: 13px; color: #1e40af; line-height: 1.5;">
+                <strong>📧 Email Notifications:</strong> After submitting the form, both you and your advisor will receive email notifications automatically.
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      
     </div>
   </div>
   

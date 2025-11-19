@@ -271,6 +271,26 @@
     }
     
     .list { display: grid; gap: 12px; }
+    #student-list {
+      max-height: 500px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 8px;
+    }
+    #student-list::-webkit-scrollbar {
+      width: 8px;
+    }
+    #student-list::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+    #student-list::-webkit-scrollbar-thumb {
+      background: #6b7280;
+      border-radius: 10px;
+    }
+    #student-list::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
     .list-item { 
       display: flex; 
       justify-content: space-between; 
@@ -440,6 +460,7 @@
     let students = [];
     let courses = [];
     let enrollments = [];
+    let myStudentsData = []; // Store original student data for filtering
     
     // API Configuration
     const API_BASE_URL = window.location.origin;
@@ -508,14 +529,8 @@
         await updateDashboard();
         console.log('Dashboard updated');
         
-        await loadNotifications();
-        console.log('Notifications loaded');
-        
         setupEventListeners();
         console.log('Event listeners set up');
-        
-        // Set up notification polling (refresh every 10 seconds for faster updates)
-        setInterval(loadNotifications, 10000);
         
         console.log('Dashboard initialization complete');
       } catch (error) {
@@ -551,7 +566,8 @@
         const advisor = await response.json();
         
         // Display profile information
-        document.getElementById('advisor-profile-name').textContent = `${advisor.firstName} ${advisor.lastName}`;
+        const advisorFullName = `${advisor.firstName} ${advisor.lastName}`;
+        document.getElementById('advisor-profile-name').textContent = advisorFullName;
         document.getElementById('advisor-profile-email').textContent = advisor.email || 'Not provided';
         document.getElementById('advisor-profile-phone').textContent = advisor.phone || 'Not provided';
         document.getElementById('advisor-profile-department').textContent = advisor.department || 'Not provided';
@@ -559,6 +575,14 @@
         document.getElementById('advisor-profile-title').textContent = advisor.title || 'Not provided';
         document.getElementById('advisor-profile-office').textContent = advisor.officeLocation || 'Not provided';
         document.getElementById('advisor-profile-hours').textContent = advisor.officeHours || 'Not provided';
+        
+        // Store advisor name for Google Form responses
+        window.currentAdvisorName = advisorFullName;
+        
+        // Load Google Form responses if requests tab is active
+        if (document.getElementById('notifications')?.classList.contains('active')) {
+          await loadGoogleFormResponses();
+        }
         
         // Format address
         const addr = advisor.address || {};
@@ -659,300 +683,133 @@
       }
     }
 
-    // Notification functions
-    async function loadNotifications() {
-      const advisorId = localStorage.getItem('advisorId');
-      if (!advisorId) {
-        console.warn('⚠️ No advisorId found in localStorage');
-        console.warn('   localStorage contents:', {
-          advisorId: localStorage.getItem('advisorId'),
-          advisorFullName: localStorage.getItem('advisorFullName'),
-          advisorEmail: localStorage.getItem('advisorEmail')
-        });
-        const notificationsList = document.getElementById('notifications-list');
-        if (notificationsList) {
-          notificationsList.innerHTML = '<div class="loading" style="color: #dc2626;">Error: No advisor ID found. Please log in again.</div>';
-        }
+
+
+    async function loadGoogleFormResponses(advisorName = null) {
+      const responsesList = document.getElementById('google-form-responses-list');
+      if (!responsesList) {
         return;
       }
 
-      console.log('🔔 Loading notifications for advisorId:', advisorId, '(type:', typeof advisorId + ')');
-
       try {
-        const response = await fetch(`${API_BASE_URL}/api/notifications?advisorId=${advisorId}&limit=50`);
-        console.log('📡 Notifications API response status:', response.status);
+        responsesList.innerHTML = '<div class="loading">Loading help request responses...</div>';
         
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Notifications data received:', {
-            count: data.notifications?.length || 0,
-            unreadCount: data.unreadCount || 0,
-            total: data.total || 0,
-            sampleNotification: data.notifications?.[0] ? {
-              id: data.notifications[0]._id,
-              title: data.notifications[0].title,
-              advisorId: data.notifications[0].advisorId
-            } : null
-          });
-          displayNotifications(data.notifications || []);
-          updateNotificationBadge(data.unreadCount || 0);
-        } else {
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          console.error('❌ Failed to load notifications:', errorData);
-          console.error('   Response status:', response.status);
-          const notificationsList = document.getElementById('notifications-list');
-          if (notificationsList) {
-            notificationsList.innerHTML = `<div class="loading" style="color: #dc2626;">Error: ${errorData.error || 'Failed to load notifications'}</div>`;
+        // Fetch all responses (don't filter by advisor name)
+        const url = advisorName 
+          ? `${API_BASE_URL}/api/google-forms/responses?advisorName=${encodeURIComponent(advisorName)}`
+          : `${API_BASE_URL}/api/google-forms/responses`;
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          // Try to get error details from response
+          let errorMessage = `Failed to load responses: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.details || errorData.error || errorMessage;
+          } catch (e) {
+            // If response is not JSON, use status text
+            errorMessage = `${errorMessage} - ${response.statusText}`;
           }
+          throw new Error(errorMessage);
         }
-      } catch (error) {
-        console.error('❌ Error loading notifications:', error);
-        console.error('   Error stack:', error.stack);
-        const notificationsList = document.getElementById('notifications-list');
-        if (notificationsList) {
-          notificationsList.innerHTML = '<div class="loading" style="color: #dc2626;">Error loading notifications: ' + error.message + '</div>';
-        }
-      }
-    }
 
-    function displayNotifications(notifications) {
-      const notificationsList = document.getElementById('notifications-list');
-      if (!notificationsList) return;
+        const data = await response.json();
+        const responses = data.responses || [];
 
-      if (notifications.length === 0) {
-        notificationsList.innerHTML = '<div class="loading">No notifications yet</div>';
-        return;
-      }
-
-      notificationsList.innerHTML = notifications.map(notif => {
-        const timeAgo = getTimeAgo(new Date(notif.createdAt));
-        const urgency = notif.data?.urgency?.toLowerCase() || 'normal';
-        const category = notif.data?.category || 'General';
-        const hasReply = notif.reply && notif.reply.contactMethod;
-        
-        const subject = notif.data?.subject || '';
-        const details = notif.data?.details || '';
-        
-        return `
-          <div class="notification-item ${notif.isRead ? '' : 'unread'}" style="cursor: default;">
-            <div class="notification-header">
-              <div class="notification-title">${escapeHtml(notif.title)}</div>
-              <div class="notification-time">${timeAgo}</div>
-            </div>
-            <div class="notification-message">${escapeHtml(notif.message)}</div>
-            ${subject ? `
-              <div style="margin-top: 8px; padding: 10px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
-                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 14px;">Subject:</div>
-                <div style="color: #374151; font-size: 13px;">${escapeHtml(subject)}</div>
-              </div>
-            ` : ''}
-            ${details ? `
-              <div style="margin-top: 8px; padding: 10px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
-                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 14px;">Student's Message:</div>
-                <div style="color: #374151; font-size: 13px; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(details)}</div>
-              </div>
-            ` : ''}
-            <div class="notification-details">
-              <span class="notification-chip category">${escapeHtml(category)}</span>
-              <span class="notification-chip urgency-${urgency}">${escapeHtml(urgency)}</span>
-              ${notif.studentName ? `<span class="notification-chip" style="background: #e0e7ff; color: #3730a3;">Student: ${escapeHtml(notif.studentName)}</span>` : ''}
-            </div>
-            ${hasReply ? `
-              <div style="margin-top: 12px; padding: 12px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 4px;">
-                <div style="font-weight: 600; color: #166534; margin-bottom: 6px;">✓ Reply Sent</div>
-                <div style="font-size: 13px; color: #15803d;">
-                  <strong>Contact Method:</strong> ${escapeHtml(notif.reply.contactMethod)}<br>
-                  <strong>Timing:</strong> ${escapeHtml(notif.reply.timing)}
-                  ${notif.reply.message ? `<br><strong>Message:</strong> ${escapeHtml(notif.reply.message)}` : ''}
-                </div>
-              </div>
-            ` : `
-              <div style="margin-top: 12px; display: flex; gap: 8px;">
-                <button class="btn primary" onclick="event.stopPropagation(); openReplyModal('${notif._id}', '${escapeHtml(notif.studentName)}', '${escapeHtml(notif.studentId)}')" style="padding: 6px 12px; font-size: 13px;">
-                  Reply to Student
-                </button>
-                <button class="btn secondary" onclick="event.stopPropagation(); markNotificationRead('${notif._id}')" style="padding: 6px 12px; font-size: 13px;">
-                  Mark as Read
-                </button>
-              </div>
-            `}
-          </div>
-        `;
-      }).join('');
-    }
-
-    let previousUnreadCount = 0;
-    
-    function updateNotificationBadge(count) {
-      const badge = document.getElementById('notification-badge');
-      if (badge) {
-        if (count > 0) {
-          badge.textContent = count > 99 ? '99+' : count;
-          badge.style.display = 'flex';
-          
-          // Add animation if count increased (new notification)
-          if (count > previousUnreadCount) {
-            badge.style.animation = 'pulse 0.5s ease-in-out';
-            setTimeout(() => {
-              badge.style.animation = '';
-            }, 500);
-            
-            // Show browser notification if permission granted
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('New Help Request', {
-                body: `You have ${count} unread notification${count > 1 ? 's' : ''}`,
-                icon: '/favicon.ico'
-              });
-            }
-          }
-        } else {
-          badge.style.display = 'none';
-        }
-        previousUnreadCount = count;
-      }
-    }
-    
-    // Request notification permission on page load
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('Notification permission:', permission);
-      });
-    }
-
-    async function markNotificationRead(notificationId) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {
-          method: 'PATCH'
-        });
-        if (response.ok) {
-          await loadNotifications();
-        }
-      } catch (error) {
-        console.error('Error marking notification as read:', error);
-      }
-    }
-
-    async function markAllNotificationsRead() {
-      const advisorId = localStorage.getItem('advisorId');
-      if (!advisorId) return;
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/notifications/mark-all-read`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ advisorId })
-        });
-        if (response.ok) {
-          await loadNotifications();
-        }
-      } catch (error) {
-        console.error('Error marking all notifications as read:', error);
-      }
-    }
-
-    function openReplyModal(notificationId, studentName, studentId) {
-      document.getElementById('reply-notification-id').value = notificationId;
-      document.getElementById('reply-student-name').textContent = studentName;
-      document.getElementById('reply-student-id').textContent = `Student ID: ${studentId}`;
-      
-      // Set minimum date to today
-      const today = new Date().toISOString().split('T')[0];
-      const dateInput = document.getElementById('contact-date');
-      dateInput.setAttribute('min', today);
-      
-      document.getElementById('reply-modal').classList.add('active');
-    }
-
-    function closeReplyModal() {
-      document.getElementById('reply-modal').classList.remove('active');
-      document.getElementById('reply-form').reset();
-    }
-
-    function formatDateTime(dateStr, timeStr) {
-      if (!dateStr || !timeStr) return '';
-      
-      const date = new Date(dateStr + 'T' + timeStr);
-      const now = new Date();
-      const diffMs = date - now;
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      
-      // Format date
-      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-      const formattedDate = date.toLocaleDateString('en-US', options);
-      
-      // Format time
-      const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
-      const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
-      
-      // Add relative time if within 7 days
-      if (diffDays === 0) {
-        return `Today at ${formattedTime}`;
-      } else if (diffDays === 1) {
-        return `Tomorrow at ${formattedTime}`;
-      } else if (diffDays === -1) {
-        return `Yesterday at ${formattedTime}`;
-      } else if (diffDays > 1 && diffDays <= 7) {
-        return `${formattedDate} at ${formattedTime}`;
-      } else {
-        return `${formattedDate} at ${formattedTime}`;
-      }
-    }
-
-    async function submitReply() {
-      const form = document.getElementById('reply-form');
-      const formData = new FormData(form);
-      const notificationId = formData.get('notificationId');
-      const contactMethod = formData.get('contactMethod');
-      const contactDate = formData.get('contactDate');
-      const contactTime = formData.get('contactTime');
-      const message = formData.get('message');
-
-      if (!contactMethod || !contactDate || !contactTime) {
-        alert('Please select a contact method, date, and time');
-        return;
-      }
-
-      // Format the date and time into a readable string
-      const timing = formatDateTime(contactDate, contactTime);
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/reply`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contactMethod,
-            timing,
-            message: message || ''
-          })
-        });
-
-        // Check if response is JSON
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await response.text();
-          console.error('❌ Server returned non-JSON response:', text.substring(0, 200));
-          alert('Server error: Received invalid response. Please check the console for details.');
+        if (responses.length === 0) {
+          responsesList.innerHTML = '<div class="list-item" style="text-align: center; color: #6b7280; padding: 20px;">No help request responses found.</div>';
           return;
         }
 
-        const result = await response.json();
+        // Display responses with advisor information
+        responsesList.innerHTML = responses.map((resp, index) => {
+          const timestamp = resp['Timestamp'] || resp['timestamp'] || '';
+          const studentName = resp['Name'] || resp['name'] || 'Unknown';
+          const studentEmail = resp['Email'] || resp['Email address'] || resp['email'] || '';
+          const phone = resp['Phone number'] || resp['phone'] || 'Not provided';
+          const category = resp['Category'] || resp['category'] || 'General';
+          const message = resp['Message'] || resp['message'] || '';
+          const otherDetails = resp['If Other please mention here'] || resp['Other'] || '';
+          const advisor = resp['Advisor'] || resp['advisor'] || 'Not assigned';
+          
+          // Format timestamp
+          let formattedDate = timestamp;
+          if (timestamp) {
+            try {
+              const date = new Date(timestamp);
+              formattedDate = date.toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+            } catch (e) {
+              // Keep original timestamp if parsing fails
+            }
+          }
 
-        if (response.ok) {
-          alert('Reply sent successfully!');
-          closeReplyModal();
-          await loadNotifications();
-        } else {
-          alert('Failed to send reply: ' + (result.error || 'Unknown error'));
-        }
+          return `
+            <div class="list-item" style="border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; background: #fff;">
+              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                <div style="flex: 1;">
+                  <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 16px;">${escapeHtml(studentName)}</div>
+                  <div style="font-size: 12px; color: #6b7280;">${formattedDate}</div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <span class="chip info" style="background: #dbeafe; color: #1e40af;">${escapeHtml(category)}</span>
+                  ${advisor && advisor !== 'Not assigned' ? `<span class="chip" style="background: #fef3c7; color: #92400e; font-size: 11px;">👤 ${escapeHtml(advisor)}</span>` : ''}
+                </div>
+              </div>
+              
+              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #374151; font-size: 13px;">Email:</strong>
+                  <span style="color: #6b7280; font-size: 13px; margin-left: 8px;">${escapeHtml(studentEmail)}</span>
+                </div>
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #374151; font-size: 13px;">Phone:</strong>
+                  <span style="color: #6b7280; font-size: 13px; margin-left: 8px;">${escapeHtml(phone)}</span>
+                </div>
+                ${advisor && advisor !== 'Not assigned' ? `
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #374151; font-size: 13px;">Assigned Advisor:</strong>
+                  <span style="color: #6b7280; font-size: 13px; margin-left: 8px;">${escapeHtml(advisor)}</span>
+                </div>
+                ` : ''}
+                ${message ? `
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #374151; font-size: 13px;">Message:</strong>
+                  <div style="color: #1f2937; font-size: 13px; margin-top: 4px; padding: 8px; background: #f9fafb; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(message)}</div>
+                </div>
+                ` : ''}
+                ${otherDetails ? `
+                <div style="margin-bottom: 8px;">
+                  <strong style="color: #374151; font-size: 13px;">Additional Details:</strong>
+                  <div style="color: #1f2937; font-size: 13px; margin-top: 4px; padding: 8px; background: #f9fafb; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(otherDetails)}</div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        // Add summary at the top
+        const summary = document.createElement('div');
+        summary.style.cssText = 'margin-bottom: 16px; padding: 12px; background: #f3f4f6; border-radius: 8px; font-size: 13px; color: #374151;';
+        summary.innerHTML = `<strong>Total Responses:</strong> ${data.total || responses.length}${data.totalAll && data.totalAll !== data.total ? ` (${data.totalAll} total in sheet)` : ''}`;
+        responsesList.insertBefore(summary, responsesList.firstChild);
+
       } catch (error) {
-        console.error('Error sending reply:', error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-        alert('Error sending reply: ' + error.message);
+        console.error('Error loading Google Form responses:', error);
+        // Show a simple message and suggest using the direct link
+        responsesList.innerHTML = `
+          <div class="list-item" style="text-align: center; color: #6b7280; padding: 20px;">
+            <div style="margin-bottom: 12px; font-size: 14px;">Unable to load responses automatically.</div>
+            <div style="font-size: 13px; color: #9ca3af;">Please use the "Open Google Sheets" button above to view responses directly.</div>
+          </div>
+        `;
       }
     }
 
@@ -1109,13 +966,17 @@
     }
 
     async function updateDashboard() {
+      // Ensure advisor data is loaded first
+      if (!currentAdvisor) {
+        await loadAdvisorData();
+      }
+      
       await updateStats();
       await loadAndDisplayStudents();
-      updateRecentActivity();
       updateCourseList();
       // Render charts if analytics tab already visible
       maybeRenderAnalyticsCharts();
-      // Load status students if tab is active
+      // Load Students Status s if tab is active
       if (document.getElementById('status-students')?.classList.contains('active')) {
         await loadStatusStudents();
       }
@@ -1187,11 +1048,18 @@
 
     // Function to calculate risk level based on GPA
     function calculateRiskLevel(gpa) {
-      if (gpa >= 0 && gpa <= 2.9) {
+      // Ensure GPA is a number
+      const numGpa = parseFloat(gpa);
+      if (isNaN(numGpa) || numGpa < 0) {
+        // Default for invalid GPA
+        return { level: 'info', text: 'Unknown' };
+      }
+      
+      if (numGpa >= 0 && numGpa <= 2.99) {
         return { level: 'danger', text: 'High Risk' };
-      } else if (gpa >= 3.0 && gpa <= 3.2) {
+      } else if (numGpa >= 3.00 && numGpa <= 3.20) {
         return { level: 'warning', text: 'Medium Risk' };
-      } else if (gpa > 3.2) {
+      } else if (numGpa > 3.20) {
         return { level: 'success', text: 'No Risk' };
       } else {
         // Default for invalid GPA
@@ -1201,10 +1069,25 @@
 
     async function loadAndDisplayStudents() {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        // Get the advisor's advisorId to filter students for "My Students" card only
+        const advisorId = currentAdvisor?.advisorId;
+        let url = `${API_BASE_URL}/api/data/csv-students`;
+        
+        // Add advisor_id filter if available (only for the student list, not for stats)
+        if (advisorId) {
+          url += `?advisor_id=${advisorId}`;
+        }
+        
+        const response = await fetch(url);
         if (response.ok) {
           const studentData = await response.json();
-          updateStudentList(studentData);
+          // Store original data for filtering
+          myStudentsData = studentData;
+          // Populate major filter
+          populateMyStudentsMajorFilter(studentData);
+          // Apply any existing filters
+          applyMyStudentsFilters();
+          // Note: Stats are updated separately in updateStats() to show ALL students
         } else {
           console.error('Failed to load students:', response.status);
         }
@@ -1225,9 +1108,18 @@
       
       studentList.innerHTML = '';
 
-      studentData.slice(0, 50).forEach(student => {
+      studentData.forEach(student => {
         // Calculate risk level based on GPA
-        const gpa = student.academic?.gpa || 0;
+        let gpa = student.academic?.gpa;
+        // Ensure GPA is a valid number
+        if (gpa === null || gpa === undefined || isNaN(gpa)) {
+          gpa = 0;
+        } else {
+          gpa = parseFloat(gpa);
+          if (isNaN(gpa)) {
+            gpa = 0;
+          }
+        }
         const risk = calculateRiskLevel(gpa);
         const absences = student.academic?.attendanceAbsences || 0;
         const credits = Math.min(student.academic?.creditsEarned || 0, 33); // Cap at 33
@@ -1252,33 +1144,9 @@
       });
     }
 
-    function updateRecentActivity() {
-      const activityList = document.getElementById('activity-list');
-      activityList.innerHTML = '';
-
-      // Mock recent activity - in real app, this would come from a database
-      const activities = [
-        { type: 'enrollment', student: 'John Doe', course: 'CS305', status: 'New', time: '2 hours ago' },
-        { type: 'gpa', student: 'Jane Smith', course: 'MATH201', status: 'Updated', time: '4 hours ago' },
-        { type: 'risk', student: 'Bob Johnson', course: 'ENG101', status: 'Alert', time: '6 hours ago' }
-      ];
-
-      activities.forEach(activity => {
-        const activityItem = document.createElement('div');
-        activityItem.className = 'list-item';
-        activityItem.innerHTML = `
-          <div class="student-info">
-            <div class="student-name">${activity.student}</div>
-            <div class="student-details">${activity.course} • ${activity.time}</div>
-          </div>
-          <span class="chip ${activity.status === 'Alert' ? 'danger' : activity.status === 'New' ? 'info' : 'warning'}">${activity.status}</span>
-        `;
-        activityList.appendChild(activityItem);
-      });
-    }
 
     // Tab switching function (can be called from onclick handlers)
-    function switchTab(tabId) {
+    async function switchTab(tabId) {
       // Remove active class from all tabs and content
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1294,15 +1162,15 @@
         targetContent.classList.add('active');
         console.log('Switched to tab:', tabId);
         
-        // If switching to notifications tab, reload notifications
+        // If switching to requests tab, load Google Form responses
         if (tabId === 'notifications') {
-          loadNotifications();
+          await loadGoogleFormResponses();
         }
         // If switching to profile tab, load profile
         if (tabId === 'profile') {
           const advisorId = localStorage.getItem('advisorId');
           if (advisorId) {
-            loadAdvisorProfile(advisorId);
+            await loadAdvisorProfile(advisorId);
           }
         }
       } else {
@@ -1380,11 +1248,7 @@
       document.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const modal = btn.closest('.modal');
-          if (modal && modal.id === 'reply-modal') {
-            closeReplyModal();
-          } else {
-            modal?.classList.remove('active');
-          }
+          modal?.classList.remove('active');
         });
       });
       
@@ -1604,12 +1468,12 @@
         // Slight delay to ensure canvas is laid out
         setTimeout(maybeRenderAnalyticsCharts, 0);
       } else if (tabId === 'status-students') {
-        // Load status students when tab is clicked
-        setTimeout(loadStatusStudents, 0);
+        // Load Students Status s when tab is clicked
+        loadStatusStudents();
       }
     });
 
-    // Add real-time search for status students
+    // Add real-time search for Students Status s
     document.addEventListener('DOMContentLoaded', () => {
       const statusSearch = document.getElementById('status-search');
       if (statusSearch) {
@@ -2257,10 +2121,10 @@
       const atRiskList = document.getElementById('at-risk-list');
       atRiskList.innerHTML = '<div class="loading">Loading at-risk students...</div>';
       
-      // Filter students with GPA < 3.1
+      // Filter students with GPA 0.0 - 2.99 (High Risk)
       const atRiskStudents = students.filter(s => {
         const gpa = s.academic?.gpa || 0;
-        return gpa < 3.1;
+        return gpa >= 0 && gpa <= 2.99;
       });
       
       if (atRiskStudents.length === 0) {
@@ -2380,7 +2244,7 @@
       }
     }
 
-    // Status Students Management Functions
+    // Students Status s Management Functions
     let statusStudents = [];
     let studentStatuses = {}; // Store student statuses in memory (in production, use database)
 
@@ -2413,19 +2277,55 @@
     }
 
     async function loadStatusStudents() {
+      const listContainer = document.getElementById('status-student-list');
+      if (!listContainer) return;
+      
+      // Show loading state
+      listContainer.innerHTML = '<div class="loading">Loading students...</div>';
+      
       try {
-        const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
-        if (response.ok) {
-          const students = await response.json();
-          statusStudents = students;
+        console.log('📋 Loading 5 students from CSV...');
+        // Fetch only 5 students initially
+        const csvResponse = await fetch(`${API_BASE_URL}/api/data/csv-students?limit=5`);
+        if (csvResponse.ok) {
+          const students = await csvResponse.json();
+          console.log('✅ Loaded', students.length, 'students from CSV');
+          
+          // Map CSV data to expected format
+          const mappedStudents = students.map(s => ({
+            studentId: s.student_id,
+            student_id: s.student_id,
+            firstName: s.firstName || s.first_name,
+            first_name: s.firstName || s.first_name,
+            lastName: s.lastName || s.last_name,
+            last_name: s.lastName || s.last_name,
+            email: s.email,
+            phone: s.phone,
+            major: s.major,
+            year: s.year,
+            academic: s.academic || { gpa: 0, creditsEarned: 0, attendanceAbsences: 0 },
+            ...s
+          }));
+          
+          // Don't store all students, just the 5 displayed
+          statusStudents = [];
           loadStudentStatuses();
-          populateMajorFilter(students);
-          updateStatusStudentList(students);
+          // Get all majors for filter (need to fetch once for major filter)
+          const allStudentsResponse = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+          if (allStudentsResponse.ok) {
+            const allStudents = await allStudentsResponse.json();
+            populateMajorFilter(allStudents);
+          }
+          updateStatusStudentList(mappedStudents);
         } else {
-          console.error('Failed to load students for status:', response.status);
+          console.error('❌ Failed to load students for status:', csvResponse.status);
+          listContainer.innerHTML = '<div class="list-item" style="text-align: center; color: #dc2626; padding: 20px;">Failed to load students. Please try refreshing the page.</div>';
         }
       } catch (error) {
-        console.error('Error loading status students:', error);
+        console.error('❌ Error loading Students Status s:', error);
+        if (listContainer) {
+          listContainer.innerHTML = `<div class="list-item" style="text-align: center; color: #dc2626; padding: 20px;">Error loading students: ${error.message}</div>`;
+        }
       }
     }
 
@@ -2457,23 +2357,74 @@
         listContainer.innerHTML = '<div class="list-item" style="text-align: center; color: #6b7280;">No students found</div>';
         return;
       }
+      
+      // Show info message if only 5 students are displayed (initial load, no search)
+      const searchTerm = document.getElementById('status-search')?.value.trim() || '';
+      if (!searchTerm && students.length === 5) {
+        const limitMessage = document.createElement('div');
+        limitMessage.className = 'list-item';
+        limitMessage.style.cssText = 'text-align: center; color: #6b7280; padding: 12px; background: #f3f4f6; border-radius: 8px; margin-bottom: 12px; font-size: 13px;';
+        limitMessage.innerHTML = `Showing 5 students. Use the search bar to find specific students.`;
+        listContainer.appendChild(limitMessage);
+      }
 
       students.forEach(student => {
-        const gpa = student.academic?.gpa || 0;
-        const risk = calculateRiskLevel(gpa);
-        const status = getStudentStatus(student.studentId || student.student_id);
+        // Parse GPA properly
+        let gpa = student.academic?.gpa;
+        if (gpa === null || gpa === undefined || isNaN(gpa)) {
+          gpa = 0;
+        } else {
+          gpa = parseFloat(gpa);
+          if (isNaN(gpa)) {
+            gpa = 0;
+          }
+        }
+        
         const studentId = student.studentId || student.student_id;
+        const firstName = student.firstName || student.first_name || '';
+        const lastName = student.lastName || student.last_name || '';
+        const email = student.email || '';
+        const major = student.major || 'N/A';
+        const year = student.year || 'N/A';
+        
+        // Use riskScore from database if available, otherwise calculate from GPA
+        let risk, currentRiskLevel;
+        if (student.riskScore !== undefined && student.riskScore !== null) {
+          // Use database risk score
+          if (student.riskScore >= 50) {
+            risk = { level: 'danger', text: 'High Risk' };
+            currentRiskLevel = 'high';
+          } else if (student.riskScore >= 25) {
+            risk = { level: 'warning', text: 'Medium Risk' };
+            currentRiskLevel = 'medium';
+          } else {
+            risk = { level: 'success', text: 'No Risk' };
+            currentRiskLevel = 'low';
+          }
+        } else {
+          // Fallback to GPA-based calculation
+          risk = calculateRiskLevel(gpa);
+          if (risk.level === 'danger') {
+            currentRiskLevel = 'high';
+          } else if (risk.level === 'warning') {
+            currentRiskLevel = 'medium';
+          } else {
+            currentRiskLevel = 'low';
+          }
+        }
+        
+        const status = getStudentStatus(studentId);
 
         const studentItem = document.createElement('div');
         studentItem.className = 'list-item';
         studentItem.style.cursor = 'default';
         studentItem.innerHTML = `
           <div class="student-info" style="flex: 1;">
-            <div class="student-name">${student.firstName || student.first_name} ${student.lastName || student.last_name}</div>
+            <div class="student-name">${escapeHtml(firstName)} ${escapeHtml(lastName)}</div>
             <div class="student-details">
-              ID: ${studentId} • ${student.major || 'N/A'} • ${student.year || 'N/A'} • GPA: ${gpa.toFixed(2)}
+              ID: ${studentId} • ${escapeHtml(major)} • ${escapeHtml(year)} • GPA: ${gpa.toFixed(2)}
             </div>
-            ${student.email ? `<div class="student-contact" style="font-size: 12px; color: #6b7280; margin-top: 4px;">📧 ${student.email}</div>` : ''}
+            ${email ? `<div class="student-contact" style="font-size: 12px; color: #6b7280; margin-top: 4px;">📧 ${escapeHtml(email)}</div>` : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
             <span class="chip ${risk.level}">${risk.text}</span>
@@ -2489,26 +2440,191 @@
       console.log(`Student ${studentId} status updated to: ${newStatus}`);
     }
 
-    function applyStatusFilters() {
-      const searchTerm = document.getElementById('status-search').value.toLowerCase();
-      const riskFilter = document.getElementById('status-risk-filter').value;
-      const majorFilter = document.getElementById('status-major-filter').value;
+    async function applyStatusFilters() {
+      const listContainer = document.getElementById('status-student-list');
+      const searchTerm = document.getElementById('status-search')?.value.trim() || '';
+      const riskFilter = document.getElementById('status-risk-filter')?.value || '';
+      const majorFilter = document.getElementById('status-major-filter')?.value || '';
 
-      let filtered = [...statusStudents];
-
-      // Search filter
+      // If there's a search term, fetch from CSV
       if (searchTerm) {
-        filtered = filtered.filter(s => {
-          const name = `${s.firstName || s.first_name} ${s.lastName || s.last_name}`.toLowerCase();
-          const id = String(s.studentId || s.student_id).toLowerCase();
-          return name.includes(searchTerm) || id.includes(searchTerm);
+        if (listContainer) {
+          listContainer.innerHTML = '<div class="loading">Searching students...</div>';
+        }
+        try {
+          console.log('🔍 Searching students in CSV:', searchTerm);
+          const response = await fetch(`${API_BASE_URL}/api/data/csv-students?search=${encodeURIComponent(searchTerm)}`);
+          if (response.ok) {
+            const students = await response.json();
+            console.log('✅ Found', students.length, 'matching students');
+            
+            // Map CSV data to expected format
+            let filtered = students.map(s => ({
+              studentId: s.student_id,
+              student_id: s.student_id,
+              firstName: s.firstName || s.first_name,
+              first_name: s.firstName || s.first_name,
+              lastName: s.lastName || s.last_name,
+              last_name: s.lastName || s.last_name,
+              email: s.email,
+              phone: s.phone,
+              major: s.major,
+              year: s.year,
+              academic: s.academic || { gpa: 0, creditsEarned: 0, attendanceAbsences: 0 },
+              ...s
+            }));
+            
+            // Apply risk filter
+            if (riskFilter) {
+              filtered = filtered.filter(s => {
+                let gpa = s.academic?.gpa;
+                if (gpa === null || gpa === undefined || isNaN(gpa)) {
+                  gpa = 0;
+                } else {
+                  gpa = parseFloat(gpa);
+                  if (isNaN(gpa)) {
+                    gpa = 0;
+                  }
+                }
+                const risk = calculateRiskLevel(gpa);
+                if (riskFilter === 'high') return risk.level === 'danger';
+                if (riskFilter === 'medium') return risk.level === 'warning';
+                if (riskFilter === 'no') return risk.level === 'success';
+                return true;
+              });
+            }
+            
+            // Apply major filter
+            if (majorFilter) {
+              filtered = filtered.filter(s => (s.major || '') === majorFilter);
+            }
+            
+            updateStatusStudentList(filtered);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Error searching students:', error);
+        }
+      }
+      
+      // If no search term, apply filters to currently displayed students or reload 5
+      if (!searchTerm) {
+        // Reload 5 students and apply filters
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/data/csv-students?limit=5`);
+          if (response.ok) {
+            const students = await response.json();
+            let filtered = students.map(s => ({
+              studentId: s.student_id,
+              student_id: s.student_id,
+              firstName: s.firstName || s.first_name,
+              first_name: s.firstName || s.first_name,
+              lastName: s.lastName || s.last_name,
+              last_name: s.lastName || s.last_name,
+              email: s.email,
+              phone: s.phone,
+              major: s.major,
+              year: s.year,
+              academic: s.academic || { gpa: 0, creditsEarned: 0, attendanceAbsences: 0 },
+              ...s
+            }));
+            
+            // Apply risk filter
+            if (riskFilter) {
+              filtered = filtered.filter(s => {
+                let gpa = s.academic?.gpa;
+                if (gpa === null || gpa === undefined || isNaN(gpa)) {
+                  gpa = 0;
+                } else {
+                  gpa = parseFloat(gpa);
+                  if (isNaN(gpa)) {
+                    gpa = 0;
+                  }
+                }
+                const risk = calculateRiskLevel(gpa);
+                if (riskFilter === 'high') return risk.level === 'danger';
+                if (riskFilter === 'medium') return risk.level === 'warning';
+                if (riskFilter === 'no') return risk.level === 'success';
+                return true;
+              });
+            }
+            
+            // Apply major filter
+            if (majorFilter) {
+              filtered = filtered.filter(s => (s.major || '') === majorFilter);
+            }
+            
+            updateStatusStudentList(filtered);
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Error loading students:', error);
+        }
+      }
+      
+    }
+
+    async function clearStatusFilters() {
+      document.getElementById('status-search').value = '';
+      document.getElementById('status-risk-filter').value = '';
+      document.getElementById('status-major-filter').value = '';
+      // When clearing filters, reload 5 students
+      await loadStatusStudents();
+    }
+
+    // My Students Filter Functions
+    function populateMyStudentsMajorFilter(students) {
+      const majorFilter = document.getElementById('my-students-major-filter');
+      if (!majorFilter) return;
+      
+      // Get unique majors from students
+      const majors = [...new Set(students.map(s => s.major || s.major).filter(Boolean))].sort();
+      
+      // Clear existing options except "All Majors"
+      majorFilter.innerHTML = '<option value="">All Majors</option>';
+      
+      // Add major options
+      majors.forEach(major => {
+        const option = document.createElement('option');
+        option.value = major;
+        option.textContent = major;
+        majorFilter.appendChild(option);
+      });
+    }
+
+    function applyMyStudentsFilters() {
+      if (!myStudentsData || myStudentsData.length === 0) {
+        return;
+      }
+      
+      const searchTerm = document.getElementById('my-students-search')?.value.trim() || '';
+      const riskFilter = document.getElementById('my-students-risk-filter')?.value || '';
+      const majorFilter = document.getElementById('my-students-major-filter')?.value || '';
+      
+      let filtered = [...myStudentsData];
+      
+      // Apply search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filtered = filtered.filter(student => {
+          const name = `${student.firstName || student.first_name} ${student.lastName || student.last_name}`.toLowerCase();
+          const id = String(student.studentId || student.student_id).toLowerCase();
+          return name.includes(searchLower) || id.includes(searchLower);
         });
       }
-
-      // Risk filter
+      
+      // Apply risk filter
       if (riskFilter) {
         filtered = filtered.filter(s => {
-          const gpa = s.academic?.gpa || 0;
+          let gpa = s.academic?.gpa;
+          if (gpa === null || gpa === undefined || isNaN(gpa)) {
+            gpa = 0;
+          } else {
+            gpa = parseFloat(gpa);
+            if (isNaN(gpa)) {
+              gpa = 0;
+            }
+          }
           const risk = calculateRiskLevel(gpa);
           if (riskFilter === 'high') return risk.level === 'danger';
           if (riskFilter === 'medium') return risk.level === 'warning';
@@ -2516,20 +2632,97 @@
           return true;
         });
       }
-
-      // Major filter
+      
+      // Apply major filter
       if (majorFilter) {
         filtered = filtered.filter(s => (s.major || '') === majorFilter);
       }
-
-      updateStatusStudentList(filtered);
+      
+      // Update the student list with filtered data
+      updateStudentList(filtered);
     }
 
-    function clearStatusFilters() {
-      document.getElementById('status-search').value = '';
-      document.getElementById('status-risk-filter').value = '';
-      document.getElementById('status-major-filter').value = '';
-      updateStatusStudentList(statusStudents);
+    function clearMyStudentsFilters() {
+      document.getElementById('my-students-search').value = '';
+      document.getElementById('my-students-risk-filter').value = '';
+      document.getElementById('my-students-major-filter').value = '';
+      // Show all students
+      if (myStudentsData && myStudentsData.length > 0) {
+        updateStudentList(myStudentsData);
+      }
+    }
+
+
+    // Contact Student Functions
+    function openContactStudentModal(studentId, studentName, studentEmail) {
+      document.getElementById('contact-student-id').value = studentId;
+      document.getElementById('contact-student-name').textContent = studentName;
+      document.getElementById('contact-student-email').textContent = studentEmail ? `📧 ${studentEmail}` : 'Email not available';
+      document.getElementById('contact-student-modal').classList.add('active');
+    }
+
+    function closeContactStudentModal() {
+      document.getElementById('contact-student-modal').classList.remove('active');
+      document.getElementById('contact-student-form').reset();
+    }
+
+    async function submitContactStudent(event) {
+      event.preventDefault();
+      
+      const form = event.target;
+      const formData = new FormData(form);
+      const studentId = formData.get('studentId');
+      const advisorId = localStorage.getItem('advisorId');
+      
+      if (!advisorId) {
+        alert('Please log in as an advisor to contact students');
+        return;
+      }
+      
+      const contactData = {
+        studentId: parseInt(studentId),
+        advisorId: advisorId,
+        subject: formData.get('subject'),
+        category: formData.get('category'),
+        urgency: formData.get('urgency'),
+        message: formData.get('message')
+      };
+      
+      try {
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Sending...';
+        
+        const response = await fetch(`${API_BASE_URL}/api/entries`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            type: 'advisor-contact',
+            data: contactData
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert(`✅ Message sent successfully to student!\n\nThe student has been notified and will see your message in their dashboard.`);
+          closeContactStudentModal();
+          // Optionally reload student list or show success indicator
+        } else {
+          throw new Error(result.error || 'Failed to send message');
+        }
+      } catch (error) {
+        console.error('Error sending message to student:', error);
+        alert(`❌ Failed to send message: ${error.message}`);
+      } finally {
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Send Message';
+        }
+      }
     }
 
     function openAddStudentToStatusModal() {
@@ -2571,7 +2764,7 @@
       // Set initial status to 'pending'
       setStudentStatus(studentId, 'pending');
       
-      // Reload the status student list
+      // Reload the Students Status  list
       loadStatusStudents();
       
       // Close modal
@@ -2595,10 +2788,6 @@
         </div>
       </div>
       <div class="header-actions">
-        <button class="notification-bell" onclick="switchTab('notifications')" title="Notifications">
-          🔔
-          <span id="notification-badge" class="notification-badge" style="display: none;">0</span>
-        </button>
         <a class="signout" href="index.html" onclick="
           localStorage.clear();
           sessionStorage.clear();
@@ -2613,9 +2802,9 @@
     <!-- Navigation Tabs -->
     <div class="nav-tabs">
       <button class="nav-tab active" data-tab="overview">📊 Overview</button>
-      <button class="nav-tab" data-tab="status-students">👥 Status Students</button>
+      <button class="nav-tab" data-tab="status-students">👥 Students Status</button>
       <button class="nav-tab" data-tab="courses">📚 Courses</button>
-      <button class="nav-tab" data-tab="notifications">🔔 Notifications</button>
+      <button class="nav-tab" data-tab="notifications">🔔 Requests</button>
       <button class="nav-tab" data-tab="analytics">📈 Analytics</button>
       <button class="nav-tab" data-tab="profile">👤 Profile</button>
     </div>
@@ -2632,12 +2821,14 @@
       </div>
     </div>
 
-    <!-- Status Students Tab -->
+    <!-- Status Advisor Tab -->
     <div id="status-students" class="tab-content">
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2><span class="card-icon">👥</span>Status Students</h2>
-          <button class="btn primary" onclick="openAddStudentToStatusModal()">Add Student</button>
+          <h2><span class="card-icon">👥</span>Students Status s</h2>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn primary" onclick="openAddStudentToStatusModal()">Add Student</button>
+          </div>
         </div>
         
         <!-- Filters Section -->
@@ -2678,15 +2869,21 @@
     </div>
 
     <!-- Analytics Tab -->
-    <!-- Notifications Tab -->
+    <!-- Requests Tab -->
     <div id="notifications" class="tab-content">
+      <!-- Google Form Responses Section -->
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2><span class="card-icon">🔔</span>Notifications</h2>
-          <button class="btn secondary" onclick="markAllNotificationsRead()">Mark All as Read</button>
+          <h2><span class="card-icon">📋</span>Help Request Responses</h2>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn secondary" onclick="loadGoogleFormResponses()">🔄 Refresh</button>
+            <a href="https://docs.google.com/spreadsheets/d/1g-3Q2jvwappOkJ0snKnh5tSvK6w-E9kxCDnzdD35JDE/edit?resourcekey=&gid=2130650484#gid=2130650484" target="_blank" class="btn primary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+              📊 Open Google Sheets
+            </a>
+          </div>
         </div>
-        <div id="notifications-list" class="list">
-          <div class="loading">Loading notifications...</div>
+        <div id="google-form-responses-list" class="list">
+          <div class="loading">Loading help request responses...</div>
         </div>
       </div>
     </div>
@@ -2837,16 +3034,41 @@
         </div>
     </div>
 
-    <div class="card">
-      <h2><span class="card-icon">🔔</span>Recent Activity</h2>
-      <div class="list" id="activity-list">
-        <!-- Activity will be loaded here -->
-      </div>
-    </div>
 
     
         <div class="card">
           <h2><span class="card-icon">👥</span>My Students</h2>
+          
+          <!-- Filters Section -->
+          <div style="background: #f9fafb; margin-bottom: 20px; padding: 20px; border-radius: 12px;">
+            <h3 style="font-size: 16px; margin-bottom: 16px; color: #1f2937;">Filters</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+              <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Search Student</label>
+                <input type="text" id="my-students-search" placeholder="Name or ID..." style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+              </div>
+              <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Risk Level</label>
+                <select id="my-students-risk-filter" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                  <option value="">All Risk Levels</option>
+                  <option value="high">High Risk</option>
+                  <option value="medium">Medium Risk</option>
+                  <option value="no">No Risk</option>
+                </select>
+              </div>
+              <div>
+                <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Major</label>
+                <select id="my-students-major-filter" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                  <option value="">All Majors</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+              <button class="btn primary" onclick="applyMyStudentsFilters()">Apply Filters</button>
+              <button class="btn secondary" onclick="clearMyStudentsFilters()">Clear</button>
+            </div>
+          </div>
+          
           <div class="list" id="student-list">
             <!-- Students will be loaded here -->
           </div>
@@ -2854,14 +3076,14 @@
       </div>
     
 
-    <!-- Students Tab -->
-    <!--
+    Advisor Tab
+    
     <div id="students" class="tab-content">
       <div class="card">
         <h2><span class="card-icon">👥</span>Students</h2>
         
         <!-- Advanced Filters -->
-        <!--
+        
         <div class="filters-section" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px;">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
             <div class="filter-group">
@@ -2932,7 +3154,7 @@
         </div>
       </div>
     </div>
-    <!-- Students Tab commented out above -->
+    <!-- Advisor Tab commented out above -->
 
     
 
@@ -3144,6 +3366,55 @@
   </div>
   <!-- At Risk Students Modal commented out above -->
 
+  <!-- Contact Student Modal -->
+  <div id="contact-student-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Contact Student</h2>
+        <button class="modal-close" onclick="closeContactStudentModal()">&times;</button>
+      </div>
+      <form id="contact-student-form" class="form" onsubmit="submitContactStudent(event)">
+        <input type="hidden" id="contact-student-id" name="studentId">
+        <div style="margin-bottom: 16px; padding: 12px; background: #f3f4f6; border-radius: 8px;">
+          <div style="font-weight: 600; margin-bottom: 4px;" id="contact-student-name"></div>
+          <div style="font-size: 13px; color: #6b7280;" id="contact-student-email"></div>
+        </div>
+        <div>
+          <label>Subject <span style="color: #dc2626;">*</span></label>
+          <input type="text" name="subject" required placeholder="e.g., Academic Progress Review" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+        </div>
+        <div>
+          <label>Category <span style="color: #dc2626;">*</span></label>
+          <select name="category" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            <option value="">Select category...</option>
+            <option value="Academics">Academics</option>
+            <option value="Financial">Financial</option>
+            <option value="Housing">Housing</option>
+            <option value="Career">Career</option>
+            <option value="Personal">Personal</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Urgency <span style="color: #dc2626;">*</span></label>
+          <select name="urgency" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            <option value="Low">Low</option>
+            <option value="Normal" selected>Normal</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <div>
+          <label>Message <span style="color: #dc2626;">*</span></label>
+          <textarea name="message" required rows="5" placeholder="Enter your message to the student..." style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; resize: vertical;"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn secondary" onclick="closeContactStudentModal()">Cancel</button>
+          <button type="submit" class="btn primary">Send Message</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Add Student to Status Modal -->
   <div id="add-student-status-modal" class="modal">
     <div class="modal-content">
@@ -3166,55 +3437,6 @@
     </div>
   </div>
 
-  <!-- Reply to Notification Modal -->
-  <div id="reply-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Reply to Student</h2>
-        <button class="modal-close" onclick="closeReplyModal()">&times;</button>
-      </div>
-      <form id="reply-form" class="form">
-        <input type="hidden" id="reply-notification-id" name="notificationId">
-        <div style="margin-bottom: 16px; padding: 12px; background: #f3f4f6; border-radius: 8px;">
-          <div style="font-weight: 600; margin-bottom: 4px;" id="reply-student-name"></div>
-          <div style="font-size: 13px; color: #6b7280;" id="reply-student-id"></div>
-        </div>
-        <div>
-          <label>How will you contact the student? <span style="color: #dc2626;">*</span></label>
-          <select name="contactMethod" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
-            <option value="">Select contact method...</option>
-            <option value="Email">Email</option>
-            <option value="Phone">Phone</option>
-            <option value="In-Person">In-Person</option>
-            <option value="Video Call">Video Call</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        <div>
-          <label>When will you contact? <span style="color: #dc2626;">*</span></label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-            <div>
-              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Date</label>
-              <input type="date" id="contact-date" name="contactDate" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
-            </div>
-            <div>
-              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Time</label>
-              <input type="time" id="contact-time" name="contactTime" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
-            </div>
-          </div>
-          <input type="hidden" id="contact-timing" name="timing">
-        </div>
-        <div>
-          <label>Additional Message (Optional):</label>
-          <textarea name="message" placeholder="Add any additional details about how you plan to help..." rows="4" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; resize: vertical;"></textarea>
-        </div>
-        <div class="actions">
-          <button type="button" class="btn secondary" onclick="closeReplyModal()">Cancel</button>
-          <button type="button" class="btn primary" onclick="submitReply()">Send Reply</button>
-        </div>
-      </form>
-    </div>
-  </div>
 </body>
 </html>
 

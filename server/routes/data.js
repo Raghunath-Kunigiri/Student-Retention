@@ -20,8 +20,8 @@ router.get('/csv-stats', async (req, res) => {
     // Total students from students.csv
     const totalStudents = studentsData.length;
     
-    // At-risk students from academic_records.csv (GPA < 3.1)
-    const atRiskStudents = academicData.filter(record => record.gpa < 3.1).length;
+    // At-risk students from academic_records.csv (GPA 0.0 - 2.99)
+    const atRiskStudents = academicData.filter(record => record.gpa >= 0 && record.gpa <= 2.99).length;
     
     // Average GPA from academic_records.csv
     const validGPAs = academicData.filter(record => record.gpa > 0);
@@ -144,6 +144,8 @@ router.get('/csv-retention', async (req, res) => {
 // Get all students from CSV with academic data
 router.get('/csv-students', async (req, res) => {
   try {
+    const { limit, search, advisor_id } = req.query;
+    
     // Get raw CSV data directly
     const studentsData = csvParser.parseCSV('students.csv');
     const academicData = csvParser.parseCSV('academic_records.csv');
@@ -155,7 +157,7 @@ router.get('/csv-students', async (req, res) => {
     });
     
     // Combine student data with academic data, ensuring proper field mapping
-    const studentsWithAcademic = studentsData.map(student => {
+    let studentsWithAcademic = studentsData.map(student => {
       const academic = academicMap.get(student.student_id);
       return {
         student_id: student.student_id,
@@ -175,6 +177,30 @@ router.get('/csv-students', async (req, res) => {
         } : null
       };
     });
+    
+    // Apply advisor_id filter if provided
+    if (advisor_id) {
+      const advisorIdNum = parseInt(advisor_id);
+      studentsWithAcademic = studentsWithAcademic.filter(student => {
+        return parseInt(student.advisorId) === advisorIdNum;
+      });
+    }
+    
+    // Apply search filter if provided
+    if (search) {
+      const searchLower = search.toLowerCase();
+      studentsWithAcademic = studentsWithAcademic.filter(student => {
+        const name = `${student.firstName} ${student.lastName}`.toLowerCase();
+        const id = String(student.student_id).toLowerCase();
+        return name.includes(searchLower) || id.includes(searchLower);
+      });
+    }
+    
+    // Apply limit if provided
+    if (limit) {
+      const limitNum = parseInt(limit);
+      studentsWithAcademic = studentsWithAcademic.slice(0, limitNum);
+    }
     
     res.json(studentsWithAcademic);
   } catch (error) {
@@ -321,7 +347,12 @@ router.get('/students/:id', async (req, res) => {
         birthDate: csvStudent.birth_date ? new Date(csvStudent.birth_date) : mongoStudent.birthDate,
         advisor_id: csvStudent.advisor_id, // Include advisor_id from CSV
         // Prioritize CSV data for academic, financial, housing
-        academic: csvStudent.academic || mongoStudent.academic || {},
+        academic: csvStudent.academic ? {
+          ...csvStudent.academic,
+          // Normalize field names for frontend
+          attendanceAbsences: csvStudent.academic.attendance_absences || csvStudent.academic.attendanceAbsences || 0,
+          attendance_absences: csvStudent.academic.attendance_absences || csvStudent.academic.attendanceAbsences || 0
+        } : (mongoStudent.academic || {}),
         financial: csvStudent.financial ? {
           ...csvStudent.financial,
           fee_balance: parseFloat(csvStudent.financial.fee_balance) || 0,
@@ -360,7 +391,12 @@ router.get('/students/:id', async (req, res) => {
         enrollmentStatus: csvStudent.enrollment_status || 'Enrolled',
         birthDate: csvStudent.birth_date ? new Date(csvStudent.birth_date) : null,
         advisor_id: csvStudent.advisor_id, // Include advisor_id from CSV
-        academic: csvStudent.academic || {},
+        academic: csvStudent.academic ? {
+          ...csvStudent.academic,
+          // Normalize field names for frontend
+          attendanceAbsences: csvStudent.academic.attendance_absences || csvStudent.academic.attendanceAbsences || 0,
+          attendance_absences: csvStudent.academic.attendance_absences || csvStudent.academic.attendanceAbsences || 0
+        } : {},
         financial: csvStudent.financial ? {
           ...csvStudent.financial,
           fee_balance: parseFloat(csvStudent.financial.fee_balance) || 0,
@@ -1128,6 +1164,109 @@ router.delete('/clear-all-users', async (req, res) => {
   } catch (error) {
     console.error('Error clearing database:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Update risk level for a single student
+router.put('/students/:id/risk-level', async (req, res) => {
+  try {
+    const studentId = parseInt(req.params.id);
+    const { riskLevel } = req.body; // 'high', 'medium', or 'low'
+    
+    console.log(`[Risk Level Update] Request received for student ${studentId} with risk level: ${riskLevel}`);
+    
+    if (!studentId || isNaN(studentId)) {
+      console.error('[Risk Level Update] Invalid student ID:', req.params.id);
+      return res.status(400).json({ error: 'Invalid student ID' });
+    }
+    
+    if (!riskLevel || !['high', 'medium', 'low'].includes(riskLevel)) {
+      console.error('[Risk Level Update] Invalid risk level:', riskLevel);
+      return res.status(400).json({ error: 'Invalid risk level. Must be "high", "medium", or "low"' });
+    }
+    
+    // Map risk level to risk score ranges
+    let riskScoreMin, riskScoreMax, riskFactors;
+    switch (riskLevel) {
+      case 'high':
+        riskScoreMin = 50;
+        riskScoreMax = 100;
+        riskFactors = ['High Risk'];
+        break;
+      case 'medium':
+        riskScoreMin = 25;
+        riskScoreMax = 49;
+        riskFactors = ['Medium Risk'];
+        break;
+      case 'low':
+        riskScoreMin = 0;
+        riskScoreMax = 24;
+        riskFactors = [];
+        break;
+    }
+    
+    // Calculate average risk score for the level
+    const averageRiskScore = Math.round((riskScoreMin + riskScoreMax) / 2);
+    
+    console.log(`[Risk Level Update] Looking for student with ID: ${studentId}`);
+    
+    // Find and update the student
+    let student = await Student.findOne({ studentId: studentId });
+    
+    if (!student) {
+      console.log(`[Risk Level Update] Student ${studentId} not found in MongoDB, checking CSV...`);
+      
+      // If student not in MongoDB, try to get from CSV and create in MongoDB
+      const students = csvParser.getStudentData();
+      const csvStudent = students.find(s => {
+        const sId = s.student_id || s.studentId;
+        return sId == studentId || sId === studentId || String(sId) === String(studentId);
+      });
+      
+      if (csvStudent) {
+        console.log(`[Risk Level Update] Found student ${studentId} in CSV, creating MongoDB record...`);
+        // Create student in MongoDB with basic info
+        student = new Student({
+          studentId: studentId,
+          firstName: csvStudent.first_name || '',
+          lastName: csvStudent.last_name || '',
+          email: csvStudent.email || '',
+          major: csvStudent.major || '',
+          year: csvStudent.year || '',
+          academic: {
+            gpa: csvStudent.academic?.gpa || 0,
+            creditsEarned: csvStudent.academic?.credits_earned || 0,
+            attendanceAbsences: csvStudent.academic?.attendance_absences || 0
+          },
+          riskScore: averageRiskScore,
+          riskFactors: riskFactors,
+          isActive: true
+        });
+        await student.save();
+        console.log(`[Risk Level Update] Created new student record in MongoDB for ${studentId}`);
+      } else {
+        console.error(`[Risk Level Update] Student ${studentId} not found in CSV or MongoDB`);
+        return res.status(404).json({ error: `Student ${studentId} not found` });
+      }
+    } else {
+      // Update existing student's risk level
+      student.riskScore = averageRiskScore;
+      student.riskFactors = riskFactors;
+      await student.save();
+      console.log(`[Risk Level Update] Updated existing student ${studentId} risk level to "${riskLevel}"`);
+    }
+    
+    res.json({
+      success: true,
+      message: `Risk level updated to "${riskLevel}" for student ${studentId}`,
+      studentId: studentId,
+      riskLevel: riskLevel,
+      riskScore: averageRiskScore
+    });
+  } catch (error) {
+    console.error('[Risk Level Update] Error:', error);
+    console.error('[Risk Level Update] Error stack:', error.stack);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
