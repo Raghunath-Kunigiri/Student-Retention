@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Advisor Dashboard - Student Retention System</title>
   <link rel="stylesheet" href="../src/styles/variables.css" />
   <link rel="stylesheet" href="../src/styles/cursor.css" />
@@ -441,7 +444,49 @@
     // API Configuration
     const API_BASE_URL = window.location.origin;
 
+    // Authentication check - must be first
+    (function() {
+      const advisorId = localStorage.getItem('advisorId');
+      const advisorSessionToken = localStorage.getItem('advisorSessionToken');
+      
+      // If no authentication, redirect to login
+      if (!advisorId || !advisorSessionToken) {
+        // Clear any remaining data
+        localStorage.clear();
+        sessionStorage.clear();
+        // Redirect to login
+        window.location.href = 'index.html';
+        return;
+      }
+    })();
+
+    // Prevent back button access after logout
+    window.addEventListener('pageshow', function(event) {
+      // If page was loaded from cache (back button), check authentication
+      if (event.persisted) {
+        const advisorId = localStorage.getItem('advisorId');
+        const advisorSessionToken = localStorage.getItem('advisorSessionToken');
+        
+        if (!advisorId || !advisorSessionToken) {
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.href = 'index.html';
+        }
+      }
+    });
+
     document.addEventListener('DOMContentLoaded', async () => {
+      // Double-check authentication on load
+      const advisorId = localStorage.getItem('advisorId');
+      const advisorSessionToken = localStorage.getItem('advisorSessionToken');
+      
+      if (!advisorId || !advisorSessionToken) {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = 'index.html';
+        return;
+      }
+      
       console.log('DOM Content Loaded - Initializing dashboard...');
       
       try {
@@ -683,19 +728,54 @@
         const timeAgo = getTimeAgo(new Date(notif.createdAt));
         const urgency = notif.data?.urgency?.toLowerCase() || 'normal';
         const category = notif.data?.category || 'General';
+        const hasReply = notif.reply && notif.reply.contactMethod;
+        
+        const subject = notif.data?.subject || '';
+        const details = notif.data?.details || '';
         
         return `
-          <div class="notification-item ${notif.isRead ? '' : 'unread'}" onclick="markNotificationRead('${notif._id}')">
+          <div class="notification-item ${notif.isRead ? '' : 'unread'}" style="cursor: default;">
             <div class="notification-header">
               <div class="notification-title">${escapeHtml(notif.title)}</div>
               <div class="notification-time">${timeAgo}</div>
             </div>
             <div class="notification-message">${escapeHtml(notif.message)}</div>
+            ${subject ? `
+              <div style="margin-top: 8px; padding: 10px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 14px;">Subject:</div>
+                <div style="color: #374151; font-size: 13px;">${escapeHtml(subject)}</div>
+              </div>
+            ` : ''}
+            ${details ? `
+              <div style="margin-top: 8px; padding: 10px; background: #f9fafb; border-radius: 6px; border-left: 3px solid #3b82f6;">
+                <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 14px;">Student's Message:</div>
+                <div style="color: #374151; font-size: 13px; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(details)}</div>
+              </div>
+            ` : ''}
             <div class="notification-details">
               <span class="notification-chip category">${escapeHtml(category)}</span>
               <span class="notification-chip urgency-${urgency}">${escapeHtml(urgency)}</span>
               ${notif.studentName ? `<span class="notification-chip" style="background: #e0e7ff; color: #3730a3;">Student: ${escapeHtml(notif.studentName)}</span>` : ''}
             </div>
+            ${hasReply ? `
+              <div style="margin-top: 12px; padding: 12px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 4px;">
+                <div style="font-weight: 600; color: #166534; margin-bottom: 6px;">✓ Reply Sent</div>
+                <div style="font-size: 13px; color: #15803d;">
+                  <strong>Contact Method:</strong> ${escapeHtml(notif.reply.contactMethod)}<br>
+                  <strong>Timing:</strong> ${escapeHtml(notif.reply.timing)}
+                  ${notif.reply.message ? `<br><strong>Message:</strong> ${escapeHtml(notif.reply.message)}` : ''}
+                </div>
+              </div>
+            ` : `
+              <div style="margin-top: 12px; display: flex; gap: 8px;">
+                <button class="btn primary" onclick="event.stopPropagation(); openReplyModal('${notif._id}', '${escapeHtml(notif.studentName)}', '${escapeHtml(notif.studentId)}')" style="padding: 6px 12px; font-size: 13px;">
+                  Reply to Student
+                </button>
+                <button class="btn secondary" onclick="event.stopPropagation(); markNotificationRead('${notif._id}')" style="padding: 6px 12px; font-size: 13px;">
+                  Mark as Read
+                </button>
+              </div>
+            `}
           </div>
         `;
       }).join('');
@@ -767,6 +847,112 @@
         }
       } catch (error) {
         console.error('Error marking all notifications as read:', error);
+      }
+    }
+
+    function openReplyModal(notificationId, studentName, studentId) {
+      document.getElementById('reply-notification-id').value = notificationId;
+      document.getElementById('reply-student-name').textContent = studentName;
+      document.getElementById('reply-student-id').textContent = `Student ID: ${studentId}`;
+      
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      const dateInput = document.getElementById('contact-date');
+      dateInput.setAttribute('min', today);
+      
+      document.getElementById('reply-modal').classList.add('active');
+    }
+
+    function closeReplyModal() {
+      document.getElementById('reply-modal').classList.remove('active');
+      document.getElementById('reply-form').reset();
+    }
+
+    function formatDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return '';
+      
+      const date = new Date(dateStr + 'T' + timeStr);
+      const now = new Date();
+      const diffMs = date - now;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      // Format date
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      const formattedDate = date.toLocaleDateString('en-US', options);
+      
+      // Format time
+      const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+      const formattedTime = date.toLocaleTimeString('en-US', timeOptions);
+      
+      // Add relative time if within 7 days
+      if (diffDays === 0) {
+        return `Today at ${formattedTime}`;
+      } else if (diffDays === 1) {
+        return `Tomorrow at ${formattedTime}`;
+      } else if (diffDays === -1) {
+        return `Yesterday at ${formattedTime}`;
+      } else if (diffDays > 1 && diffDays <= 7) {
+        return `${formattedDate} at ${formattedTime}`;
+      } else {
+        return `${formattedDate} at ${formattedTime}`;
+      }
+    }
+
+    async function submitReply() {
+      const form = document.getElementById('reply-form');
+      const formData = new FormData(form);
+      const notificationId = formData.get('notificationId');
+      const contactMethod = formData.get('contactMethod');
+      const contactDate = formData.get('contactDate');
+      const contactTime = formData.get('contactTime');
+      const message = formData.get('message');
+
+      if (!contactMethod || !contactDate || !contactTime) {
+        alert('Please select a contact method, date, and time');
+        return;
+      }
+
+      // Format the date and time into a readable string
+      const timing = formatDateTime(contactDate, contactTime);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/reply`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contactMethod,
+            timing,
+            message: message || ''
+          })
+        });
+
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('❌ Server returned non-JSON response:', text.substring(0, 200));
+          alert('Server error: Received invalid response. Please check the console for details.');
+          return;
+        }
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert('Reply sent successfully!');
+          closeReplyModal();
+          await loadNotifications();
+        } else {
+          alert('Failed to send reply: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error sending reply:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        alert('Error sending reply: ' + error.message);
       }
     }
 
@@ -1192,8 +1378,13 @@
 
       // Modal close
       document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => {
-          btn.closest('.modal').classList.remove('active');
+        btn.addEventListener('click', (e) => {
+          const modal = btn.closest('.modal');
+          if (modal && modal.id === 'reply-modal') {
+            closeReplyModal();
+          } else {
+            modal?.classList.remove('active');
+          }
         });
       });
       
@@ -2119,14 +2310,74 @@
       */
     }
 
-    function addCourse() {
+    async function addCourse() {
       const form = document.getElementById('add-course-form');
       const formData = new FormData(form);
       
-      // In a real app, this would add the course to the database
-      alert('Course added successfully!');
-      document.getElementById('course-modal').classList.remove('active');
-      form.reset();
+      const courseData = {
+        course_code: formData.get('courseCode'),
+        course_title: formData.get('courseName'),
+        credits: parseInt(formData.get('credits')),
+        department: formData.get('department'),
+        description: formData.get('description') || ''
+      };
+      
+      // Validate required fields
+      if (!courseData.course_code || !courseData.course_title || !courseData.credits || !courseData.department) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data/courses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(courseData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert('Course added successfully and saved to CSV!');
+          document.getElementById('course-modal').classList.remove('active');
+          form.reset();
+          
+          // Reload courses to show the new one
+          await loadCourses();
+        } else {
+          alert('Failed to add course: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error adding course:', error);
+        alert('Error adding course: ' + error.message);
+      }
+    }
+    
+    async function deleteCourse(courseId) {
+      if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/data/courses/${courseId}`, {
+          method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          alert('Course deleted successfully from CSV!');
+          // Reload courses to update the list
+          await loadCourses();
+        } else {
+          alert('Failed to delete course: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error deleting course:', error);
+        alert('Error deleting course: ' + error.message);
+      }
     }
 
     // Status Students Management Functions
@@ -2226,13 +2477,6 @@
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
             <span class="chip ${risk.level}">${risk.text}</span>
-            <select class="status-select" data-student-id="${studentId}" style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 13px; min-width: 120px;" onchange="updateStudentStatus('${studentId}', this.value)">
-              <option value="pending" ${status === 'pending' ? 'selected' : ''}>Pending</option>
-              <option value="advised" ${status === 'advised' ? 'selected' : ''}>Advised</option>
-              <option value="consulted" ${status === 'consulted' ? 'selected' : ''}>Consulted</option>
-              <option value="done" ${status === 'done' ? 'selected' : ''}>Done</option>
-              <option value="follow-up" ${status === 'follow-up' ? 'selected' : ''}>Follow-up</option>
-            </select>
           </div>
         `;
         listContainer.appendChild(studentItem);
@@ -2248,7 +2492,6 @@
     function applyStatusFilters() {
       const searchTerm = document.getElementById('status-search').value.toLowerCase();
       const riskFilter = document.getElementById('status-risk-filter').value;
-      const statusFilter = document.getElementById('status-filter').value;
       const majorFilter = document.getElementById('status-major-filter').value;
 
       let filtered = [...statusStudents];
@@ -2274,14 +2517,6 @@
         });
       }
 
-      // Status filter
-      if (statusFilter) {
-        filtered = filtered.filter(s => {
-          const studentId = s.studentId || s.student_id;
-          return getStudentStatus(studentId) === statusFilter;
-        });
-      }
-
       // Major filter
       if (majorFilter) {
         filtered = filtered.filter(s => (s.major || '') === majorFilter);
@@ -2293,7 +2528,6 @@
     function clearStatusFilters() {
       document.getElementById('status-search').value = '';
       document.getElementById('status-risk-filter').value = '';
-      document.getElementById('status-filter').value = '';
       document.getElementById('status-major-filter').value = '';
       updateStatusStudentList(statusStudents);
     }
@@ -2365,7 +2599,13 @@
           🔔
           <span id="notification-badge" class="notification-badge" style="display: none;">0</span>
         </button>
-        <a class="signout" href="index.html" onclick="localStorage.clear()">Sign out</a>
+        <a class="signout" href="index.html" onclick="
+          localStorage.clear();
+          sessionStorage.clear();
+          // Prevent back button access
+          window.location.replace('index.html');
+          return false;
+        ">Sign out</a>
       </div>
     </div>
     
@@ -2386,9 +2626,6 @@
     <div id="courses" class="tab-content">
       <div class="card">
         <h2><span class="card-icon">📚</span>Course Management</h2>
-        <div class="actions">
-          <button class="btn primary" onclick="openCourseModal()">Add Course</button>
-        </div>
         <div class="list" id="course-list">
           <!-- Courses will be loaded here -->
         </div>
@@ -2418,17 +2655,6 @@
                 <option value="high">High Risk</option>
                 <option value="medium">Medium Risk</option>
                 <option value="no">No Risk</option>
-              </select>
-            </div>
-            <div>
-              <label style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #374151;">Status</label>
-              <select id="status-filter" style="width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 8px;">
-                <option value="">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="advised">Advised</option>
-                <option value="consulted">Consulted</option>
-                <option value="done">Done</option>
-                <option value="follow-up">Follow-up</option>
               </select>
             </div>
             <div>
@@ -2844,10 +3070,10 @@
           <div>
             <label>Department:</label>
             <select name="department" required>
-              <option value="CS">Computer Science</option>
-              <option value="ENG">Engineering</option>
-              <option value="BUS">Business</option>
-              <option value="MATH">Mathematics</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Business">Business</option>
+              <option value="Mathematics">Mathematics</option>
             </select>
           </div>
           <div>
@@ -2937,6 +3163,56 @@
           <button class="btn primary" onclick="addStudentToStatus()">Add Student</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Reply to Notification Modal -->
+  <div id="reply-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Reply to Student</h2>
+        <button class="modal-close" onclick="closeReplyModal()">&times;</button>
+      </div>
+      <form id="reply-form" class="form">
+        <input type="hidden" id="reply-notification-id" name="notificationId">
+        <div style="margin-bottom: 16px; padding: 12px; background: #f3f4f6; border-radius: 8px;">
+          <div style="font-weight: 600; margin-bottom: 4px;" id="reply-student-name"></div>
+          <div style="font-size: 13px; color: #6b7280;" id="reply-student-id"></div>
+        </div>
+        <div>
+          <label>How will you contact the student? <span style="color: #dc2626;">*</span></label>
+          <select name="contactMethod" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            <option value="">Select contact method...</option>
+            <option value="Email">Email</option>
+            <option value="Phone">Phone</option>
+            <option value="In-Person">In-Person</option>
+            <option value="Video Call">Video Call</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label>When will you contact? <span style="color: #dc2626;">*</span></label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Date</label>
+              <input type="date" id="contact-date" name="contactDate" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px;">Time</label>
+              <input type="time" id="contact-time" name="contactTime" required style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px;">
+            </div>
+          </div>
+          <input type="hidden" id="contact-timing" name="timing">
+        </div>
+        <div>
+          <label>Additional Message (Optional):</label>
+          <textarea name="message" placeholder="Add any additional details about how you plan to help..." rows="4" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; resize: vertical;"></textarea>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn secondary" onclick="closeReplyModal()">Cancel</button>
+          <button type="button" class="btn primary" onclick="submitReply()">Send Reply</button>
+        </div>
+      </form>
     </div>
   </div>
 </body>

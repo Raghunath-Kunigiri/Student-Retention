@@ -52,6 +52,25 @@ const notificationSchema = new mongoose.Schema({
   },
   emailSentAt: {
     type: Date
+  },
+  reply: {
+    contactMethod: {
+      type: String,
+      enum: ['Email', 'Phone', 'In-Person', 'Video Call', 'Other'],
+      default: null
+    },
+    timing: {
+      type: String,
+      default: null
+    },
+    message: {
+      type: String,
+      default: null
+    },
+    repliedAt: {
+      type: Date,
+      default: null
+    }
   }
 }, {
   timestamps: true

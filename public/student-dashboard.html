@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Student Dashboard</title>
   <link rel="stylesheet" href="../src/styles/variables.css" />
   <link rel="stylesheet" href="../src/styles/cursor.css" />
@@ -115,12 +118,125 @@
         grid-template-columns: 1fr; 
       } 
     }
+    
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 30px;
+      border-bottom: 2px solid #e5e7eb;
+      flex-wrap: wrap;
+    }
+    .nav-tab {
+      padding: 12px 20px;
+      background: transparent;
+      border: none;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-weight: 600;
+      color: #6b7280;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+    .nav-tab.active {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+    .nav-tab:hover:not(.active) {
+      background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
   </style>
   <link rel="stylesheet" href="styles/theme.css" />
   <script type="module" src="../src/index.js"></script>
   <script>
+    // Authentication check - must be first
+    (function() {
+      const studentId = localStorage.getItem('studentId');
+      const studentSessionToken = localStorage.getItem('studentSessionToken');
+      
+      // If no authentication, redirect to login
+      if (!studentId || !studentSessionToken) {
+        // Clear any remaining data
+        localStorage.clear();
+        sessionStorage.clear();
+        // Redirect to login
+        window.location.href = 'index.html';
+        return;
+      }
+    })();
+
+    // Prevent back button access after logout
+    window.addEventListener('pageshow', function(event) {
+      // If page was loaded from cache (back button), check authentication
+      if (event.persisted) {
+        const studentId = localStorage.getItem('studentId');
+        const studentSessionToken = localStorage.getItem('studentSessionToken');
+        
+        if (!studentId || !studentSessionToken) {
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.href = 'index.html';
+        }
+      }
+    });
+
+    // Clear page from cache when navigating away
+    window.addEventListener('beforeunload', function() {
+      // This helps prevent back button access
+    });
+
+    // Utility function to escape HTML
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Tab switching function
+    function switchTab(tabId) {
+      // Remove active class from all tabs and content
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      // Add active class to selected tab and corresponding content
+      const tabButton = document.querySelector(`[data-tab="${tabId}"]`);
+      if (tabButton) {
+        tabButton.classList.add('active');
+      }
+      
+      const targetContent = document.getElementById(tabId);
+      if (targetContent) {
+        targetContent.classList.add('active');
+        
+        // Load data when switching to specific tabs
+        const studentId = localStorage.getItem('studentId');
+        if (tabId === 'courses' && studentId) {
+          loadEnrollments(studentId);
+        } else if (tabId === 'advisor' && studentId) {
+          loadHelpRequests(studentId);
+        }
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
+      // Double-check authentication on load
       const studentId = localStorage.getItem('studentId') || '';
+      const studentSessionToken = localStorage.getItem('studentSessionToken') || '';
+      
+      if (!studentId || !studentSessionToken) {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.href = 'index.html';
+        return;
+      }
+      
       let fullName = localStorage.getItem('fullName') || '';
 
       // If fullName not cached, fetch profile from backend
@@ -174,8 +290,7 @@
       // Load financial information
       await loadFinancialData(studentId);
       
-      // Load course enrollments
-      await loadEnrollments(studentId);
+      // Note: Course enrollments and help requests will load when their tabs are opened
     });
 
     // Function to calculate risk level based on GPA and financial status
@@ -184,7 +299,7 @@
       
       // Check GPA risk
       if (gpa >= 0 && gpa <= 2.9) {
-        riskLevel = { level: 'danger', text: 'High Risk', score: 30 };
+        riskLevel = { level: 'danger', text: 'High', score: 30 };
       } else if (gpa >= 3.0 && gpa <= 3.2) {
         riskLevel = { level: 'warning', text: 'Medium Risk', score: 15 };
       } else if (gpa > 3.2) {
@@ -200,13 +315,13 @@
         
         if (daysOverdue > 0) {
           // Financial overdue is high risk
-          riskLevel = { level: 'danger', text: 'High Risk', score: 50 };
+          riskLevel = { level: 'danger', text: 'High', score: 50 };
         } else if (feeBalance > 5000) {
           // High fee balance is medium-high risk
           if (riskLevel.level === 'success') {
             riskLevel = { level: 'warning', text: 'Medium Risk', score: 20 };
           } else if (riskLevel.level === 'warning') {
-            riskLevel = { level: 'danger', text: 'High Risk', score: 40 };
+            riskLevel = { level: 'danger', text: 'High', score: 40 };
           }
         }
       }
@@ -362,6 +477,15 @@
           
           assignedAdvisorId = advisor.advisorId || advisor._id || advisor.id;
           
+          // Update the hidden advisor field in the form
+          const advisorSelect = document.getElementById('advisor-select');
+          if (advisorSelect) {
+            advisorSelect.value = assignedAdvisorId;
+          }
+          
+          // Update the advisor display in the help request form
+          loadAdvisorsForDropdown(studentId);
+          
           // Ensure we have required fields
           const firstName = advisor.firstName || advisor.first_name || '';
           const lastName = advisor.lastName || advisor.last_name || '';
@@ -406,42 +530,51 @@
 
     async function loadAdvisorsForDropdown(studentId) {
       const advisorSelect = document.getElementById('advisor-select');
+      const advisorDisplay = document.getElementById('assigned-advisor-display');
+      
       if (!advisorSelect) return;
 
-      try {
-        const response = await fetch(`${window.location.origin}/api/data/advisors`);
-        if (response.ok) {
-          const advisors = await response.json();
-          advisorSelect.innerHTML = '<option value="">Select an advisor</option>';
-          
-          advisors.forEach(advisor => {
-            const option = document.createElement('option');
-            // Always use numeric advisorId for consistency
-            const advisorValue = advisor.advisorId || (advisor._id ? String(advisor._id) : '');
-            option.value = advisorValue;
-            option.textContent = `${advisor.firstName} ${advisor.lastName} - ${advisor.department}`;
-            advisorSelect.appendChild(option);
-          });
+      // Wait for assigned advisor to be loaded
+      if (!assignedAdvisorId) {
+        // If not loaded yet, wait a bit and try again
+        setTimeout(() => loadAdvisorsForDropdown(studentId), 500);
+        return;
+      }
 
-          // If assigned advisor is set, ensure it's selected
-          if (assignedAdvisorId) {
-            // Try to find and select the assigned advisor
-            const options = Array.from(advisorSelect.options);
-            const assignedOption = options.find(opt => {
-              const optValue = parseInt(opt.value) || opt.value;
-              const assignedValue = parseInt(assignedAdvisorId) || assignedAdvisorId;
-              return optValue == assignedValue; // Use == for loose comparison
-            });
-            if (assignedOption) {
-              assignedOption.selected = true;
+      try {
+        // Set the hidden field to the assigned advisor ID
+        advisorSelect.value = assignedAdvisorId;
+        
+        // Fetch advisor details to display
+        const response = await fetch(`${window.location.origin}/api/data/students/${studentId}/advisor`);
+        if (response.ok) {
+          const advisor = await response.json();
+          const firstName = advisor.firstName || advisor.first_name || '';
+          const lastName = advisor.lastName || advisor.last_name || '';
+          const department = advisor.department || 'Unknown Department';
+          
+          if (advisorDisplay) {
+            if (firstName || lastName) {
+              advisorDisplay.textContent = `${firstName} ${lastName} (${department})`;
+              advisorDisplay.style.color = '#1f2937';
+            } else {
+              advisorDisplay.textContent = 'Your assigned advisor';
+              advisorDisplay.style.color = '#6b7280';
             }
           }
         } else {
-          advisorSelect.innerHTML = '<option value="">Error loading advisors</option>';
+          // Fallback: use the advisor ID we have
+          if (advisorDisplay) {
+            advisorDisplay.textContent = `Advisor ID: ${assignedAdvisorId}`;
+            advisorDisplay.style.color = '#6b7280';
+          }
         }
       } catch (error) {
-        console.error('Error loading advisors:', error);
-        advisorSelect.innerHTML = '<option value="">Error loading advisors</option>';
+        console.error('Error loading advisor details:', error);
+        if (advisorDisplay) {
+          advisorDisplay.textContent = 'Your assigned advisor will be notified';
+          advisorDisplay.style.color = '#6b7280';
+        }
       }
     }
 
@@ -449,15 +582,15 @@
     async function submitHelpRequest(e){
       e.preventDefault();
       const form = e.target;
-      const selectedAdvisorId = form.advisorId.value;
+      const selectedAdvisorId = form.advisorId.value || assignedAdvisorId;
       
       if (!selectedAdvisorId) {
-        alert('Please select an advisor');
+        alert('No advisor assigned. Please contact the administration to assign an advisor.');
         return;
       }
 
       console.log('📝 Submitting help request...');
-      console.log('   Selected Advisor ID:', selectedAdvisorId);
+      console.log('   Assigned Advisor ID:', selectedAdvisorId);
       console.log('   Student ID:', localStorage.getItem('studentId'));
 
       const payload = {
@@ -498,6 +631,8 @@
         // Reset advisor selection to assigned advisor
         if (assignedAdvisorId) {
           form.advisorId.value = assignedAdvisorId;
+          // Reload advisor display
+          loadAdvisorsForDropdown(localStorage.getItem('studentId'));
         }
         
         // Show success message with notification status
@@ -509,6 +644,9 @@
         
         // Close the form after successful submission
         toggleHelpRequestForm();
+        
+        // Reload help requests to show the new one
+        await loadHelpRequests(localStorage.getItem('studentId'));
       } catch(err){
         console.error('❌ Error submitting request:', err);
         alert('Failed to submit. Please try again. Error: ' + err.message);
@@ -668,32 +806,31 @@
       }
 
       try {
+        console.log('📚 Loading enrollments for student:', studentId);
         const response = await fetch(`${window.location.origin}/api/data/students/${studentId}/enrollments`);
         if (!response.ok) {
           throw new Error('Failed to load enrollments');
         }
         const data = await response.json();
         
+        console.log('✅ Enrollment data received:', data);
+        
         // Store enrollment data globally
         enrollmentData = data;
         
-        const enrollmentsCard = document.getElementById('enrollments-card');
         const container = document.getElementById('enrollments-container');
         const termSelect = document.getElementById('term-select');
         
-        if (!enrollmentsCard || !container || !termSelect) {
-          console.error('Enrollments card elements not found');
+        if (!container || !termSelect) {
+          console.error('❌ Enrollments container or term select not found');
           return;
         }
         
         if (!data.terms || data.terms.length === 0) {
           container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No enrollments found.</div>';
-          enrollmentsCard.style.display = 'none';
+          termSelect.innerHTML = '<option value="">No terms available</option>';
           return;
         }
-        
-        // Show card
-        enrollmentsCard.style.display = 'block';
         
         // Populate term dropdown
         termSelect.innerHTML = '<option value="">Select a Term</option>';
@@ -701,29 +838,33 @@
           const term = termGroup.term;
           if (term) {
             const option = document.createElement('option');
-            option.value = term.term_id;
-            option.textContent = `${term.term_name || `Term ${term.term_id}`}${term.academic_year ? ` (${term.academic_year})` : ''}`;
+            option.value = term.term_id || term.termId;
+            const termName = term.term_name || term.termName || `Term ${term.term_id || term.termId}`;
+            const academicYear = term.academic_year || term.academicYear;
+            option.textContent = `${termName}${academicYear ? ` (${academicYear})` : ''}`;
             termSelect.appendChild(option);
           }
         });
         
-        // Add event listener for term selection
-        termSelect.addEventListener('change', function() {
+        // Remove existing event listeners and add new one
+        const newTermSelect = termSelect.cloneNode(true);
+        termSelect.parentNode.replaceChild(newTermSelect, termSelect);
+        newTermSelect.addEventListener('change', function() {
           displayEnrollments(this.value);
         });
         
-        // Show empty container initially
-        container.innerHTML = '';
+        // Show empty container initially (user must select a term)
+        container.innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Please select a term from the dropdown above to view your course enrollments.</div>';
         
-        console.log('Enrollments loaded:', {
+        console.log('✅ Enrollments loaded:', {
           totalEnrollments: data.totalEnrollments,
           terms: data.terms.length
         });
       } catch (error) {
-        console.error('Error loading enrollments:', error);
-        const enrollmentsCard = document.getElementById('enrollments-card');
-        if (enrollmentsCard) {
-          enrollmentsCard.style.display = 'none';
+        console.error('❌ Error loading enrollments:', error);
+        const container = document.getElementById('enrollments-container');
+        if (container) {
+          container.innerHTML = '<div style="text-align: center; padding: 20px; color: #dc2626;">Error loading enrollments. Please try again later.</div>';
         }
       }
     }
@@ -930,6 +1071,135 @@
       }
     }
 
+    async function loadHelpRequests(studentId) {
+      const requestsList = document.getElementById('help-requests-list');
+      if (!requestsList) return;
+
+      try {
+        console.log('📋 Loading help requests for student:', studentId);
+        const response = await fetch(`${window.location.origin}/api/entries?studentId=${studentId}&type=help-request&includeReplies=true`);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('❌ Failed to load help requests:', response.status, errorData);
+          throw new Error(errorData.error || `Failed to load help requests (${response.status})`);
+        }
+
+        const requests = await response.json();
+        console.log('✅ Loaded help requests:', requests.length);
+
+        if (requests.length === 0) {
+          requestsList.innerHTML = '<div class="list-item" style="text-align: center; color: #6b7280; padding: 20px;">No help requests yet. Click "Contact Advisor" to submit a request.</div>';
+          return;
+        }
+
+        requestsList.innerHTML = requests.map(request => {
+          const date = new Date(request.createdAt);
+          const dateStr = date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          const hasReply = request.reply && request.reply.contactMethod;
+          const replyDate = hasReply && request.reply.repliedAt ? new Date(request.reply.repliedAt) : null;
+          const replyDateStr = replyDate ? replyDate.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : '';
+          
+          console.log('Request:', {
+            id: request._id,
+            subject: request.data?.subject,
+            hasReply: hasReply,
+            reply: request.reply
+          });
+          
+          return `
+            <div style="margin-bottom: 20px; border: 2px solid ${hasReply ? '#22c55e' : '#e5e7eb'}; border-radius: 12px; overflow: hidden; background: #fff;">
+              <!-- Your Request Section -->
+              <div style="padding: 16px; background: ${hasReply ? '#f9fafb' : '#fff'}; border-bottom: ${hasReply ? '2px solid #e5e7eb' : 'none'};">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                      <span style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase;">Your Request</span>
+                      <span class="chip" style="background: #e0e7ff; color: #3730a3; font-size: 11px;">${escapeHtml(request.data?.category || 'General')}</span>
+                      <span class="chip" style="background: ${request.data?.urgency === 'High' ? '#fee2e2' : request.data?.urgency === 'Normal' ? '#fef3c7' : '#d1fae5'}; color: ${request.data?.urgency === 'High' ? '#991b1b' : request.data?.urgency === 'Normal' ? '#92400e' : '#166534'}; font-size: 11px;">${escapeHtml(request.data?.urgency || 'Normal')}</span>
+                    </div>
+                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 15px;">${escapeHtml(request.data?.subject || 'No Subject')}</div>
+                    <div style="font-size: 12px; color: #6b7280;">Submitted: ${dateStr}</div>
+                  </div>
+                </div>
+                <div style="font-size: 13px; color: #374151; line-height: 1.6; white-space: pre-wrap; padding: 12px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
+                  ${escapeHtml(request.data?.details || 'No details provided')}
+                </div>
+              </div>
+              
+              <!-- Advisor Reply Section -->
+              ${hasReply ? `
+                <div style="padding: 16px; background: #f0fdf4; border-top: 3px solid #22c55e;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 20px;">✓</span>
+                    <span style="font-size: 13px; font-weight: 600; color: #166534; text-transform: uppercase;">Reply from Your Advisor</span>
+                    ${replyDateStr ? `<span style="font-size: 11px; color: #6b7280; margin-left: auto;">${replyDateStr}</span>` : ''}
+                  </div>
+                  <div style="background: #fff; padding: 14px; border-radius: 8px; border-left: 3px solid #22c55e;">
+                    <div style="font-size: 13px; color: #15803d; line-height: 1.8;">
+                      <div style="margin-bottom: 8px;">
+                        <strong style="color: #166534;">Contact Method:</strong> 
+                        <span style="color: #374151;">${escapeHtml(request.reply.contactMethod)}</span>
+                      </div>
+                      <div style="margin-bottom: 8px;">
+                        <strong style="color: #166534;">When:</strong> 
+                        <span style="color: #374151;">${escapeHtml(request.reply.timing)}</span>
+                      </div>
+                      ${request.reply.message ? `
+                        <div style="margin-top: 12px; padding-top: 12px; border-top: 2px solid #bbf7d0;">
+                          <strong style="color: #166534; display: block; margin-bottom: 6px;">Message:</strong>
+                          <div style="color: #374151; white-space: pre-wrap; line-height: 1.6;">${escapeHtml(request.reply.message)}</div>
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+                </div>
+              ` : `
+                <div style="padding: 16px; background: #fff; text-align: center;">
+                  <div style="font-size: 13px; color: #6b7280; font-style: italic; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>⏳</span>
+                    <span>Waiting for advisor response...</span>
+                  </div>
+                </div>
+              `}
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('❌ Error loading help requests:', error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          studentId: studentId
+        });
+        
+        // Show more helpful error message
+        const errorMsg = error.message || 'Unknown error occurred';
+        requestsList.innerHTML = `
+          <div class="list-item" style="color: #dc2626; padding: 16px; text-align: center;">
+            <div style="margin-bottom: 8px;">⚠️ Error loading help requests</div>
+            <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">${escapeHtml(errorMsg)}</div>
+            <button class="btn primary" onclick="loadHelpRequests('${studentId}')" style="padding: 8px 16px; font-size: 13px;">
+              Try Again
+            </button>
+          </div>
+        `;
+      }
+    }
+
     function toggleProfileEdit() {
       const display = document.getElementById('profile-display');
       const edit = document.getElementById('profile-edit');
@@ -1008,221 +1278,259 @@
           <small>Student Dashboard</small>
         </div>
       </div>
-      <a class="signout" href="index.html" onclick="localStorage.clear()">Sign out</a>
+      <a class="signout" href="index.html" onclick="
+        localStorage.clear();
+        sessionStorage.clear();
+        // Prevent back button access
+        window.location.replace('index.html');
+        return false;
+      ">Sign out</a>
     </div>
 
-    <div class="grid">
-      <div class="left-column">
-        <!-- Academic Metrics Section -->
-        <div class="card">
-          <h2>Academic Metrics</h2>
-          <div class="metrics-grid">
-            <div class="metric">
-              <div class="label">GPA</div>
-              <div class="value">3.8</div>
-            </div>
-            <div class="metric">
-              <div class="label">Credits</div>
-              <div class="value">72/120</div>
-            </div>
-            <div class="metric">
-              <div class="label">Attendance</div>
-              <div class="value">95%</div>
-            </div>
-            <div class="metric" id="risk-metric">
-              <div class="label">Risk Level</div>
-              <div class="value" style="font-size: 16px; background-clip: unset; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background: unset; margin-top: 8px;">
-                <span class="chip info">Loading...</span>
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-tab="overview">📊 Overview</button>
+      <button class="nav-tab" data-tab="courses">📚 Courses</button>
+      <button class="nav-tab" data-tab="profile">👤 Profile</button>
+      <button class="nav-tab" data-tab="advisor">👨‍🏫 My Advisor</button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div id="overview" class="tab-content active">
+      <div class="grid">
+        <div class="left-column">
+          <!-- Academic Metrics Section -->
+          <div class="card">
+            <h2>Academic Metrics</h2>
+            <div class="metrics-grid">
+              <div class="metric">
+                <div class="label">GPA</div>
+                <div class="value">3.8</div>
+              </div>
+              <div class="metric">
+                <div class="label">Credits</div>
+                <div class="value">72/120</div>
+              </div>
+              <div class="metric">
+                <div class="label">Attendance</div>
+                <div class="value">95%</div>
+              </div>
+              <div class="metric" id="risk-metric">
+                <div class="label">Risk Level</div>
+                <div class="value" style="font-size: 16px; background-clip: unset; -webkit-background-clip: unset; -webkit-text-fill-color: unset; background: unset; margin-top: 8px;">
+                  <span class="chip info">Loading...</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Financial Information -->
-        <div class="card" id="financial-card" style="display: none;">
-          <h2>Financial Information</h2>
-          <div class="list" id="financial-info">
-            <div class="list-item">
-              <span><strong>Fee Balance:</strong> <span id="fee-balance">Loading...</span></span>
-              <span class="chip" id="balance-chip">-</span>
-            </div>
-            <div class="list-item">
-              <span><strong>Financial Aid Status:</strong> <span id="aid-status">Loading...</span></span>
-              <span class="chip" id="aid-chip">-</span>
-            </div>
-            <div class="list-item">
-              <span><strong>Last Payment Date:</strong> <span id="last-payment">Loading...</span></span>
-            </div>
-            <div class="list-item" id="overdue-item" style="display: none;">
-              <span><strong>Days Overdue:</strong> <span id="days-overdue" style="color: #dc2626; font-weight: 600;">0</span></span>
-              <span class="chip danger">Overdue</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Course Enrollments -->
-        <div class="card" id="enrollments-card" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 style="margin: 0; border: none; padding: 0;">Course Enrollments</h2>
-            <select id="term-select" style="padding: 8px 12px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px; background: #fff; cursor: pointer;">
-              <option value="">Select a Term</option>
-            </select>
-          </div>
-          <div id="enrollments-container">
-            <div style="text-align: center; padding: 20px; color: #666;">Loading enrollments...</div>
-          </div>
-        </div>
-
-        <!-- Help Request Form (Hidden by default) -->
-        <div class="card" id="help-request-card" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 style="margin: 0; border: none; padding: 0;">Help Request</h2>
-            <button type="button" class="btn secondary" onclick="toggleHelpRequestForm()" style="padding: 8px 16px; font-size: 14px;">Close</button>
-          </div>
-          <form class="form" id="help-request-form" onsubmit="submitHelpRequest(event)">
-            <div class="row">
-              <div>
-                <label for="category">Category</label>
-                <select id="category" name="category" required>
-                  <option value="">Select category</option>
-                  <option>Housing</option>
-                  <option>Academics</option>
-                  <option>Classes</option>
-                  <option>Financial</option>
-                  <option>Health & Wellness</option>
-                  <option>Other</option>
-                </select>
+        <div class="right-column">
+          <!-- Financial Information -->
+          <div class="card" id="financial-card">
+            <h2>Financial Information</h2>
+            <div class="list" id="financial-info">
+              <div class="list-item">
+                <span><strong>Fee Balance:</strong> <span id="fee-balance">Loading...</span></span>
+                <span class="chip" id="balance-chip">-</span>
               </div>
-              <div>
-                <label for="urgency">Urgency</label>
-                <select id="urgency" name="urgency" required>
-                  <option>Low</option>
-                  <option>Normal</option>
-                  <option>High</option>
-                </select>
+              <div class="list-item">
+                <span><strong>Financial Aid Status:</strong> <span id="aid-status">Loading...</span></span>
+                <span class="chip" id="aid-chip">-</span>
+              </div>
+              <div class="list-item">
+                <span><strong>Last Payment Date:</strong> <span id="last-payment">Loading...</span></span>
+              </div>
+              <div class="list-item" id="overdue-item" style="display: none;">
+                <span><strong>Days Overdue:</strong> <span id="days-overdue" style="color: #dc2626; font-weight: 600;">0</span></span>
+                <span class="chip danger">Overdue</span>
               </div>
             </div>
-            <div>
-              <label for="advisor-select">Select Advisor <span style="font-size: 12px; color: #6b7280;">(Your assigned advisor is pre-selected)</span></label>
-              <select id="advisor-select" name="advisorId" required>
-                <option value="">Loading advisors...</option>
-              </select>
-            </div>
-            <div>
-              <label for="subject">Subject</label>
-              <input id="subject" name="subject" placeholder="Brief summary" required />
-            </div>
-            <div>
-              <label for="details">Details</label>
-              <textarea id="details" name="details" placeholder="Describe the issue..." required></textarea>
-            </div>
-            <div class="actions">
-              <button type="reset" class="btn secondary">Clear</button>
-              <button type="submit" class="btn primary">Submit Request</button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div class="right-column">
-        <!-- Profile Section -->
-        <div class="card">
-          <h2>My Profile</h2>
-          <div id="profile-section">
-            <button id="edit-profile-btn" class="btn secondary" style="width: 100%; margin-bottom: 12px;" onclick="toggleProfileEdit()">Edit Profile</button>
-            <div id="profile-display">
-              <div class="list-item"><strong>Name:</strong> <span id="profile-name">Loading...</span></div>
-              <div class="list-item"><strong>Email:</strong> <span id="profile-email">Loading...</span></div>
-              <div class="list-item"><strong>Phone:</strong> <span id="profile-phone">Loading...</span></div>
-              <div class="list-item"><strong>Major:</strong> <span id="profile-major">Loading...</span></div>
-              <div class="list-item"><strong>Year:</strong> <span id="profile-year">Loading...</span></div>
-              <div class="list-item"><strong>Address:</strong> <span id="profile-address">Loading...</span></div>
+    <!-- Courses Tab -->
+    <div id="courses" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0; border: none; padding: 0;">Course Enrollments</h2>
+          <select id="term-select" style="padding: 8px 12px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px; background: #fff; cursor: pointer;">
+            <option value="">Select a Term</option>
+          </select>
+        </div>
+        <div id="enrollments-container">
+          <div style="text-align: center; padding: 20px; color: #666;">Please select a term from the dropdown above to view your course enrollments.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Tab -->
+    <div id="profile" class="tab-content">
+      <div class="card">
+        <h2>My Profile</h2>
+        <div id="profile-section">
+          <button id="edit-profile-btn" class="btn secondary" style="width: 100%; margin-bottom: 12px;" onclick="toggleProfileEdit()">Edit Profile</button>
+          <div id="profile-display">
+            <div class="list-item"><strong>Name:</strong> <span id="profile-name">Loading...</span></div>
+            <div class="list-item"><strong>Email:</strong> <span id="profile-email">Loading...</span></div>
+            <div class="list-item"><strong>Phone:</strong> <span id="profile-phone">Loading...</span></div>
+            <div class="list-item"><strong>Major:</strong> <span id="profile-major">Loading...</span></div>
+            <div class="list-item"><strong>Year:</strong> <span id="profile-year">Loading...</span></div>
+            <div class="list-item"><strong>Address:</strong> <span id="profile-address">Loading...</span></div>
+          </div>
+          <div id="profile-edit" style="display: none;">
+            <form class="form" id="profile-edit-form" onsubmit="saveProfile(event)">
+              <div>
+                <label>Name (cannot be changed)</label>
+                <input type="text" id="edit-name" disabled style="background: #f3f4f6; cursor: not-allowed;" />
+              </div>
+              <div>
+                <label>Email (cannot be changed)</label>
+                <input type="email" id="edit-email" disabled style="background: #f3f4f6; cursor: not-allowed;" />
+              </div>
+              <div>
+                <label for="edit-phone">Phone</label>
+                <input type="tel" id="edit-phone" name="phone" placeholder="Enter phone number" />
+              </div>
+              <div>
+                <label for="edit-major">Major</label>
+                <input type="text" id="edit-major" name="major" placeholder="Enter major" />
+              </div>
+              <div>
+                <label for="edit-year">Year</label>
+                <select id="edit-year" name="year">
+                  <option value="First Year">First Year</option>
+                  <option value="Second Year">Second Year</option>
+                  <option value="Third Year">Third Year</option>
+                  <option value="Fourth Year">Fourth Year</option>
+                  <option value="Graduate">Graduate</option>
+                </select>
+              </div>
+              <div>
+                <label for="edit-address-street">Street Address</label>
+                <input type="text" id="edit-address-street" name="address.street" placeholder="Enter street address" />
+              </div>
+              <div class="row">
+                <div>
+                  <label for="edit-address-city">City</label>
+                  <input type="text" id="edit-address-city" name="address.city" placeholder="City" />
+                </div>
+                <div>
+                  <label for="edit-address-state">State</label>
+                  <input type="text" id="edit-address-state" name="address.state" placeholder="State" />
+                </div>
+              </div>
+              <div class="row">
+                <div>
+                  <label for="edit-address-zip">Zip Code</label>
+                  <input type="text" id="edit-address-zip" name="address.zipCode" placeholder="Zip Code" />
+                </div>
+                <div>
+                  <label for="edit-address-country">Country</label>
+                  <input type="text" id="edit-address-country" name="address.country" placeholder="Country" value="USA" />
+                </div>
+              </div>
+              <div class="actions">
+                <button type="button" class="btn secondary" onclick="toggleProfileEdit()">Cancel</button>
+                <button type="submit" class="btn primary">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Advisor Tab -->
+    <div id="advisor" class="tab-content">
+      <div class="grid">
+        <div class="left-column">
+          <!-- Advisor Section -->
+          <div class="card">
+            <h2>My Advisor</h2>
+            <div id="my-advisor" class="list">
+              <div class="loading">Loading advisor information...</div>
             </div>
-            <div id="profile-edit" style="display: none;">
-              <form class="form" id="profile-edit-form" onsubmit="saveProfile(event)">
+            <button type="button" class="btn primary" onclick="toggleHelpRequestForm()" style="width: 100%; margin-top: 16px; padding: 12px;">
+              Contact Advisor
+            </button>
+          </div>
+
+          <!-- Help Request Form (Hidden by default) -->
+          <div class="card" id="help-request-card" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h2 style="margin: 0; border: none; padding: 0;">Help Request</h2>
+              <button type="button" class="btn secondary" onclick="toggleHelpRequestForm()" style="padding: 8px 16px; font-size: 14px;">Close</button>
+            </div>
+            <form class="form" id="help-request-form" onsubmit="submitHelpRequest(event)">
+              <div class="row">
                 <div>
-                  <label>Name (cannot be changed)</label>
-                  <input type="text" id="edit-name" disabled style="background: #f3f4f6; cursor: not-allowed;" />
-                </div>
-                <div>
-                  <label>Email (cannot be changed)</label>
-                  <input type="email" id="edit-email" disabled style="background: #f3f4f6; cursor: not-allowed;" />
-                </div>
-                <div>
-                  <label for="edit-phone">Phone</label>
-                  <input type="tel" id="edit-phone" name="phone" placeholder="Enter phone number" />
-                </div>
-                <div>
-                  <label for="edit-major">Major</label>
-                  <input type="text" id="edit-major" name="major" placeholder="Enter major" />
-                </div>
-                <div>
-                  <label for="edit-year">Year</label>
-                  <select id="edit-year" name="year">
-                    <option value="First Year">First Year</option>
-                    <option value="Second Year">Second Year</option>
-                    <option value="Third Year">Third Year</option>
-                    <option value="Fourth Year">Fourth Year</option>
-                    <option value="Graduate">Graduate</option>
+                  <label for="category">Category</label>
+                  <select id="category" name="category" required>
+                    <option value="">Select category</option>
+                    <option>Housing</option>
+                    <option>Academics</option>
+                    <option>Classes</option>
+                    <option>Financial</option>
+                    <option>Health & Wellness</option>
+                    <option>Other</option>
                   </select>
                 </div>
                 <div>
-                  <label for="edit-address-street">Street Address</label>
-                  <input type="text" id="edit-address-street" name="address.street" placeholder="Enter street address" />
+                  <label for="urgency">Urgency</label>
+                  <select id="urgency" name="urgency" required>
+                    <option>Low</option>
+                    <option>Normal</option>
+                    <option>High</option>
+                  </select>
                 </div>
-                <div class="row">
-                  <div>
-                    <label for="edit-address-city">City</label>
-                    <input type="text" id="edit-address-city" name="address.city" placeholder="City" />
-                  </div>
-                  <div>
-                    <label for="edit-address-state">State</label>
-                    <input type="text" id="edit-address-state" name="address.state" placeholder="State" />
-                  </div>
-                </div>
-                <div class="row">
-                  <div>
-                    <label for="edit-address-zip">Zip Code</label>
-                    <input type="text" id="edit-address-zip" name="address.zipCode" placeholder="Zip Code" />
-                  </div>
-                  <div>
-                    <label for="edit-address-country">Country</label>
-                    <input type="text" id="edit-address-country" name="address.country" placeholder="Country" value="USA" />
-                  </div>
-                </div>
-                <div class="actions">
-                  <button type="button" class="btn secondary" onclick="toggleProfileEdit()">Cancel</button>
-                  <button type="submit" class="btn primary">Save Changes</button>
-                </div>
-              </form>
+              </div>
+              <input type="hidden" id="advisor-select" name="advisorId" value="">
+              <div style="padding: 12px; background: #f3f4f6; border-radius: 8px; margin-bottom: 16px;">
+                <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Your request will be sent to:</div>
+                <div id="assigned-advisor-display" style="font-weight: 600; color: #1f2937;">Loading your assigned advisor...</div>
+              </div>
+              <div>
+                <label for="subject">Subject</label>
+                <input id="subject" name="subject" placeholder="Brief summary" required />
+              </div>
+              <div>
+                <label for="details">Details</label>
+                <textarea id="details" name="details" placeholder="Describe the issue..." required></textarea>
+              </div>
+              <div class="actions">
+                <button type="reset" class="btn secondary">Clear</button>
+                <button type="submit" class="btn primary">Submit Request</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="right-column">
+          <!-- My Help Requests Section -->
+          <div class="card">
+            <h2>My Help Requests</h2>
+            <div id="help-requests-list" class="list">
+              <div class="loading">Loading your help requests...</div>
             </div>
-          </div>
-        </div>
-
-        <!-- Advisor Section -->
-        <div class="card">
-          <h2>My Advisor</h2>
-          <div id="my-advisor" class="list">
-            <div class="loading">Loading advisor information...</div>
-          </div>
-          <button type="button" class="btn primary" onclick="toggleHelpRequestForm()" style="width: 100%; margin-top: 16px; padding: 12px;">
-            Contact Advisor
-          </button>
-        </div>
-
-        <!-- Notifications -->
-        <div class="card">
-          <h2>Notifications</h2>
-          <div class="list">
-            <div class="list-item"><span>Midterm results posted for CS 301</span><span class="chip">New</span></div>
-            <div class="list-item"><span>Library book due in 3 days</span><span class="chip">Reminder</span></div>
           </div>
         </div>
       </div>
     </div>
-
-    </div>
   </div>
+  
+  <script>
+    // Tab navigation event listeners (after DOM is loaded)
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabId = tab.getAttribute('data-tab');
+          switchTab(tabId);
+        });
+      });
+    });
+  </script>
 </body>
 </html>
 

@@ -68,6 +68,7 @@ try {
   console.log('   - GET /api/notifications/test');
   console.log('   - GET /api/notifications/debug/all');
   console.log('   - GET /api/notifications?advisorId=XXX');
+  console.log('   - POST /api/notifications/:id/reply');
 } catch (error) {
   console.error('❌ Error loading notifications route:', error);
   console.error('Error stack:', error.stack);

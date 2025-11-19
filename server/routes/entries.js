@@ -1,10 +1,12 @@
 const express = require('express');
 const Entry = require('../models/Entry');
 const Notification = require('../models/Notification');
+const Reply = require('../models/Reply');
 const Student = require('../models/Student');
 const Advisor = require('../models/Advisor');
 const { sendHelpRequestNotification } = require('../utils/emailService');
 const { getStudentAdvisor, assignAdvisorToStudent } = require('../utils/advisorAssignment');
+const csvParser = require('../utils/csvParser');
 
 const router = express.Router();
 
@@ -71,12 +73,48 @@ router.post('/', async (req, res) => {
           if (advisor) {
             console.log(`✅ Found selected advisor: ${advisor.fullName} (ID: ${advisor.advisorId}, ObjectId: ${advisor._id})`);
           } else {
-            console.warn(`⚠️ Selected advisor ${entry.data.advisorId} not found in database`);
-            console.warn(`   Available advisors in database:`);
-            const allAdvisors = await Advisor.find({ isActive: true }).select('advisorId firstName lastName').limit(10);
-            allAdvisors.forEach(a => {
-              console.warn(`     - ${a.firstName} ${a.lastName} (ID: ${a.advisorId})`);
+            console.warn(`⚠️ Selected advisor ${entry.data.advisorId} not found in MongoDB, checking CSV...`);
+            
+            // Try to find advisor in CSV
+            const advisors = csvParser.parseCSV('advisors.csv');
+            const advisorIdNum = parseInt(entry.data.advisorId);
+            const csvAdvisor = advisors.find(a => {
+              const aId = parseInt(a.advisor_id) || a.advisor_id;
+              return aId === advisorIdNum || aId == advisorIdNum;
             });
+            
+            if (csvAdvisor) {
+              console.log(`✅ Found advisor in CSV: ${csvAdvisor.first_name} ${csvAdvisor.last_name} (ID: ${csvAdvisor.advisor_id})`);
+              
+              // Create or get advisor in MongoDB from CSV data
+              advisor = await Advisor.findOne({ advisorId: advisorIdNum });
+              
+              if (!advisor) {
+                console.log(`📝 Creating advisor in MongoDB from CSV data...`);
+                advisor = new Advisor({
+                  advisorId: parseInt(csvAdvisor.advisor_id) || csvAdvisor.advisor_id,
+                  firstName: csvAdvisor.first_name || '',
+                  lastName: csvAdvisor.last_name || '',
+                  email: csvAdvisor.email || '',
+                  phone: csvAdvisor.phone || 'Not provided',
+                  department: csvAdvisor.department || 'Unknown',
+                  specialization: 'General Academic Advising',
+                  password: 'defaultpassword123', // Default password
+                  isActive: true
+                });
+                await advisor.save();
+                console.log(`✅ Advisor created in MongoDB: ${advisor.fullName} (ObjectId: ${advisor._id})`);
+              } else {
+                console.log(`✅ Advisor already exists in MongoDB: ${advisor.fullName}`);
+              }
+            } else {
+              console.warn(`⚠️ Advisor ${entry.data.advisorId} not found in CSV either`);
+              console.warn(`   Available advisors in database:`);
+              const allAdvisors = await Advisor.find({ isActive: true }).select('advisorId firstName lastName').limit(10);
+              allAdvisors.forEach(a => {
+                console.warn(`     - ${a.firstName} ${a.lastName} (ID: ${a.advisorId})`);
+              });
+            }
           }
         }
 
@@ -183,19 +221,116 @@ router.post('/', async (req, res) => {
 // Read many with basic filtering by type
 router.get('/', async (req, res) => {
   try {
-    const { type, limit = 50, skip = 0, studentId, advisorId, email, createdBy } = req.query;
+    const { type, limit = 50, skip = 0, studentId, advisorId, email, createdBy, includeReplies } = req.query;
     const query = {};
     if (type) query.type = type;
     if (createdBy) query.createdBy = createdBy;
-    if (studentId) query['data.studentId'] = studentId;
+    if (studentId) {
+      // Convert studentId to number if possible, but also match as string
+      const studentIdNum = parseInt(studentId);
+      if (!isNaN(studentIdNum)) {
+        // Use $in to match both number and string formats
+        query['data.studentId'] = { $in: [studentIdNum, studentIdNum.toString(), studentId] };
+      } else {
+        query['data.studentId'] = studentId;
+      }
+    }
     if (advisorId) query['data.advisorId'] = advisorId;
     if (email) query['data.email'] = email;
+    
+    console.log('📋 Fetching entries with query:', query);
+    
     const items = await Entry.find(query)
       .sort({ createdAt: -1 })
       .skip(Number(skip))
       .limit(Math.min(Number(limit), 200));
-    res.json(items);
+    
+    console.log(`✅ Found ${items.length} entries`);
+    
+    // If includeReplies is true, fetch replies from notifications
+    if (includeReplies === 'true' && items.length > 0) {
+      try {
+        const entryIds = items.map(item => item._id);
+        console.log(`🔍 Looking for replies for ${entryIds.length} entries`);
+        console.log(`   Entry IDs:`, entryIds.map(id => id.toString()));
+        
+        // First try to get replies from Reply collection (primary source)
+        const replies = await Reply.find({ 
+          entryId: { $in: entryIds }
+        }).sort({ createdAt: -1 });
+        
+        console.log(`✅ Found ${replies.length} replies in Reply collection`);
+        
+        // Create a map of entryId to reply
+        const replyMap = new Map();
+        replies.forEach(reply => {
+          if (reply.entryId) {
+            const entryIdStr = reply.entryId.toString();
+            replyMap.set(entryIdStr, {
+              contactMethod: reply.contactMethod,
+              timing: reply.timing,
+              message: reply.message || '',
+              repliedAt: reply.repliedAt || reply.createdAt
+            });
+          }
+        });
+        
+        // Fallback: Also check notifications for replies (for backward compatibility)
+        const notifications = await Notification.find({ 
+          entryId: { $in: entryIds },
+          'reply.contactMethod': { $exists: true, $ne: null }
+        }).select('entryId reply createdAt');
+        
+        console.log(`✅ Found ${notifications.length} notifications with replies (fallback)`);
+        
+        // Add any replies from notifications that aren't in Reply collection
+        notifications.forEach(notif => {
+          if (notif.entryId && notif.reply && notif.reply.contactMethod) {
+            const entryIdStr = notif.entryId.toString();
+            // Only add if not already in map (Reply collection takes precedence)
+            if (!replyMap.has(entryIdStr)) {
+              const replyData = notif.reply.toObject ? notif.reply.toObject() : notif.reply;
+              replyMap.set(entryIdStr, {
+                contactMethod: replyData.contactMethod,
+                timing: replyData.timing,
+                message: replyData.message || '',
+                repliedAt: replyData.repliedAt || notif.createdAt
+              });
+            }
+          }
+        });
+        
+        // Add replies to items
+        const itemsWithReplies = items.map(item => {
+          const itemObj = item.toObject();
+          const itemIdStr = item._id.toString();
+          const reply = replyMap.get(itemIdStr);
+          
+          if (reply) {
+            console.log(`   ✓ Found reply for entry ${itemIdStr}`);
+            itemObj.reply = reply;
+          } else {
+            console.log(`   ✗ No reply for entry ${itemIdStr}`);
+          }
+          
+          return itemObj;
+        });
+        
+        console.log(`📤 Returning ${itemsWithReplies.length} items, ${itemsWithReplies.filter(i => i.reply).length} with replies`);
+        
+        return res.json(itemsWithReplies);
+      } catch (replyError) {
+        console.error('❌ Error fetching replies:', replyError);
+        console.error('   Error stack:', replyError.stack);
+        // Still return items even if reply fetching fails
+        return res.json(items.map(item => item.toObject()));
+      }
+    }
+    
+    res.json(items.map(item => item.toObject()));
   } catch (err) {
+    console.error('❌ Error fetching entries:', err);
+    console.error('Error stack:', err.stack);
     res.status(500).json({ error: err.message });
   }
 });

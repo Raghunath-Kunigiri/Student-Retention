@@ -812,6 +812,93 @@ router.get('/courses', async (req, res) => {
   }
 });
 
+// Add a new course to CSV
+router.post('/courses', async (req, res) => {
+  try {
+    const { course_code, course_title, credits, department, description } = req.body;
+    
+    if (!course_code || !course_title || !credits || !department) {
+      return res.status(400).json({ error: 'Missing required fields: course_code, course_title, credits, department' });
+    }
+    
+    // Get existing courses
+    const existingCourses = csvParser.parseCSV('courses.csv');
+    
+    // Find the highest course_id
+    const maxId = existingCourses.reduce((max, course) => {
+      const id = parseInt(course.course_id) || 0;
+      return id > max ? id : max;
+    }, 0);
+    
+    // Create new course
+    const newCourse = {
+      course_id: maxId + 1,
+      course_code: course_code.trim(),
+      course_title: course_title.trim(),
+      credits: parseInt(credits) || 0,
+      department: department.trim(),
+      description: description ? description.trim() : ''
+    };
+    
+    // Add to existing courses
+    existingCourses.push(newCourse);
+    
+    // Write back to CSV
+    const headers = ['course_id', 'course_code', 'course_title', 'credits', 'department', 'description'];
+    csvParser.writeCSV('courses.csv', existingCourses, headers);
+    
+    console.log('✅ Course added to CSV:', newCourse);
+    
+    res.status(201).json({
+      success: true,
+      course: newCourse,
+      message: 'Course added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding course:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a course from CSV
+router.delete('/courses/:id', async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.id);
+    
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+    
+    // Get existing courses
+    const existingCourses = csvParser.parseCSV('courses.csv');
+    
+    // Check if course exists
+    const courseIndex = existingCourses.findIndex(c => parseInt(c.course_id) === courseId);
+    
+    if (courseIndex === -1) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+    
+    // Remove course
+    const deletedCourse = existingCourses.splice(courseIndex, 1)[0];
+    
+    // Write back to CSV
+    const headers = ['course_id', 'course_code', 'course_title', 'credits', 'department', 'description'];
+    csvParser.writeCSV('courses.csv', existingCourses, headers);
+    
+    console.log('✅ Course deleted from CSV:', deletedCourse);
+    
+    res.json({
+      success: true,
+      course: deletedCourse,
+      message: 'Course deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting course:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get enrollments data
 router.get('/enrollments', async (req, res) => {
   try {

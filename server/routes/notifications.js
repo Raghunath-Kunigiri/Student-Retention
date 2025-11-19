@@ -1,6 +1,7 @@
 const express = require('express');
 const Notification = require('../models/Notification');
 const Advisor = require('../models/Advisor');
+const Reply = require('../models/Reply');
 
 const router = express.Router();
 
@@ -194,6 +195,72 @@ router.patch('/mark-all-read', async (req, res) => {
   } catch (err) {
     console.error('Error marking all notifications as read:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Reply to a notification (MUST be before /:id routes to avoid conflicts)
+router.post('/:id/reply', async (req, res) => {
+  try {
+    console.log(`📝 Reply request received for notification ${req.params.id}`);
+    console.log(`   Request body:`, req.body);
+    
+    const { contactMethod, timing, message } = req.body;
+    
+    if (!contactMethod || !timing) {
+      console.error('❌ Missing required fields:', { contactMethod: !!contactMethod, timing: !!timing });
+      return res.status(400).json({ error: 'Contact method and timing are required' });
+    }
+
+    const notification = await Notification.findById(req.params.id);
+    
+    if (!notification) {
+      console.error(`❌ Notification not found: ${req.params.id}`);
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    // Update notification with reply
+    notification.reply = {
+      contactMethod,
+      timing,
+      message: message || '',
+      repliedAt: new Date()
+    };
+    
+    // Mark as read when replied
+    notification.isRead = true;
+    
+    await notification.save();
+
+    // Also save reply to Reply collection for better tracking
+    try {
+      const reply = await Reply.create({
+        entryId: notification.entryId,
+        notificationId: notification._id,
+        advisorId: notification.advisorId,
+        studentId: notification.studentId,
+        contactMethod,
+        timing,
+        message: message || '',
+        repliedAt: new Date()
+      });
+      
+      console.log(`✅ Reply saved to database with ID: ${reply._id}`);
+    } catch (replyError) {
+      console.error('⚠️ Error saving reply to Reply collection:', replyError);
+      // Don't fail the request if Reply save fails, notification already has the reply
+    }
+
+    console.log(`✅ Advisor replied to notification ${notification._id} for student ${notification.studentName}`);
+
+    res.json({
+      success: true,
+      notification: notification,
+      message: 'Reply sent successfully'
+    });
+  } catch (err) {
+    console.error('❌ Error replying to notification:', err);
+    console.error('   Error stack:', err.stack);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 

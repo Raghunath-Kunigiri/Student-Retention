@@ -157,6 +157,39 @@ class CSVParser {
     };
   }
 
+  // Write data to CSV file
+  writeCSV(filename, data, headers) {
+    try {
+      const filePath = path.join(this.datasetsPath, filename);
+      
+      // Build CSV content
+      let csvContent = headers.join(',') + '\n';
+      
+      data.forEach(row => {
+        const values = headers.map(header => {
+          const value = row[header] || '';
+          // Escape commas and quotes in values
+          if (value.toString().includes(',') || value.toString().includes('"') || value.toString().includes('\n')) {
+            return `"${value.toString().replace(/"/g, '""')}"`;
+          }
+          return value.toString();
+        });
+        csvContent += values.join(',') + '\n';
+      });
+      
+      // Write to file
+      fs.writeFileSync(filePath, csvContent, 'utf8');
+      
+      // Clear cache for this file
+      this.cache.delete(filename);
+      
+      return true;
+    } catch (error) {
+      console.error(`Error writing ${filename}:`, error.message);
+      throw error;
+    }
+  }
+
   // Clear cache (useful for development)
   clearCache() {
     this.cache.clear();
