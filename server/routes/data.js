@@ -9,6 +9,11 @@ const HousingRecord = require('../models/HousingRecord');
 
 const router = express.Router();
 
+// Test endpoint to verify routing works
+router.get('/test-retention', (req, res) => {
+  res.json({ message: 'Retention endpoint is accessible', timestamp: new Date().toISOString() });
+});
+
 // CSV-based statistics endpoints
 router.get('/csv-stats', async (req, res) => {
   try {
@@ -138,6 +143,162 @@ router.get('/csv-retention', async (req, res) => {
   } catch (error) {
     console.error('CSV retention error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Get term-to-term retention rate
+router.get('/term-retention', async (req, res) => {
+  console.log('Term retention endpoint called');
+  try {
+    const enrollments = csvParser.parseCSV('enrollments.csv');
+    const terms = csvParser.parseCSV('terms.csv');
+
+    console.log('Term retention calculation - Enrollments:', enrollments.length, 'Terms:', terms.length);
+
+    if (!enrollments || enrollments.length === 0) {
+      console.log('No enrollments found');
+      return res.json({
+        retentionRate: 0,
+        retained: 0,
+        notRetained: 0,
+        termA: null,
+        termB: null,
+        message: 'No enrollment data available'
+      });
+    }
+
+    if (!terms || terms.length === 0) {
+      console.log('No terms found');
+      return res.json({
+        retentionRate: 0,
+        retained: 0,
+        notRetained: 0,
+        termA: null,
+        termB: null,
+        message: 'No term data available'
+      });
+    }
+
+    // Create term lookup map
+    const termMap = new Map();
+    terms.forEach(term => {
+      const termId = parseInt(term.term_id || term.termId);
+      if (!isNaN(termId)) {
+        termMap.set(termId, {
+          term_id: termId,
+          term_name: term.term_name || term.termName || `Term ${termId}`,
+          academic_year: term.academic_year || term.academicYear,
+          start_date: term.start_date || term.startDate
+        });
+      }
+    });
+
+    // Get unique term IDs from enrollments and sort them
+    const termIds = new Set();
+    enrollments.forEach(e => {
+      const termId = parseInt(e.term_id || e.termId);
+      if (!isNaN(termId)) {
+        termIds.add(termId);
+      }
+    });
+
+    const sortedTermIds = Array.from(termIds).sort((a, b) => a - b);
+    console.log('Found term IDs:', sortedTermIds);
+
+    if (sortedTermIds.length < 2) {
+      console.log('Not enough terms found:', sortedTermIds.length);
+      return res.json({
+        retentionRate: 0,
+        retained: 0,
+        notRetained: 0,
+        termA: null,
+        termB: null,
+        message: `Need at least 2 terms to calculate retention (found ${sortedTermIds.length})`
+      });
+    }
+
+    // Use the last two terms for retention calculation
+    // This gives us the most recent term-to-term retention
+    const termAId = sortedTermIds[sortedTermIds.length - 2];
+    const termBId = sortedTermIds[sortedTermIds.length - 1];
+    
+    console.log('Using terms for retention:', { termAId, termBId });
+
+    // Get students enrolled in Term A
+    const studentsInTermA = new Set();
+    enrollments.forEach(e => {
+      const termId = parseInt(e.term_id || e.termId);
+      if (termId === termAId) {
+        const studentId = parseInt(e.student_id || e.studentId);
+        if (!isNaN(studentId)) {
+          studentsInTermA.add(studentId);
+        }
+      }
+    });
+
+    // Get students enrolled in both Term A and Term B (retained)
+    const studentsRetained = new Set();
+    enrollments.forEach(e => {
+      const termId = parseInt(e.term_id || e.termId);
+      const studentId = parseInt(e.student_id || e.studentId);
+      
+      if (termId === termBId && !isNaN(studentId) && studentsInTermA.has(studentId)) {
+        studentsRetained.add(studentId);
+      }
+    });
+
+    const totalInTermA = studentsInTermA.size;
+    const retained = studentsRetained.size;
+    const notRetained = totalInTermA - retained;
+    const retentionRate = totalInTermA > 0 ? (retained / totalInTermA) * 100 : 0;
+
+    const termA = termMap.get(termAId);
+    const termB = termMap.get(termBId);
+
+    console.log('Retention calculation result:', {
+      termAId,
+      termBId,
+      totalInTermA,
+      retained,
+      notRetained,
+      retentionRate
+    });
+
+    if (!termA || !termB) {
+      console.log('Missing term data - termA:', termA, 'termB:', termB);
+      return res.json({
+        retentionRate: 0,
+        retained: 0,
+        notRetained: 0,
+        termA: null,
+        termB: null,
+        message: 'Could not find term information'
+      });
+    }
+
+    res.json({
+      retentionRate: Math.round(retentionRate * 10) / 10, // Round to 1 decimal
+      retained,
+      notRetained,
+      totalInTermA,
+      termA: {
+        term_id: termA.term_id,
+        term_name: termA.term_name,
+        academic_year: termA.academic_year
+      },
+      termB: {
+        term_id: termB.term_id,
+        term_name: termB.term_name,
+        academic_year: termB.academic_year
+      }
+    });
+  } catch (error) {
+    console.error('Error calculating term retention:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message,
+      message: 'Error calculating retention rate'
+    });
   }
 });
 

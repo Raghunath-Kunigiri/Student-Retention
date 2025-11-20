@@ -1445,7 +1445,7 @@
     }
 
     // ---------- Analytics Charts ----------
-    let retentionChart, performanceChart, riskChart, riskBreakdownChart, majorDistributionChart, yearDistributionChart;
+    let retentionChart, performanceChart, riskChart, riskByYearChart;
 
     function maybeRenderAnalyticsCharts() {
       const analyticsTab = document.getElementById('analytics');
@@ -1453,9 +1453,7 @@
         renderRetentionChart();
         renderPerformanceChart();
         renderRiskChart();
-        renderRiskBreakdownChart();
-        renderMajorDistributionChart();
-        renderYearDistributionChart();
+        renderRiskByYearChart();
       }
     }
 
@@ -1473,32 +1471,54 @@
       }
     });
 
-    // Add real-time search for Students Status s
-    document.addEventListener('DOMContentLoaded', () => {
-      const statusSearch = document.getElementById('status-search');
-      if (statusSearch) {
-        statusSearch.addEventListener('input', () => {
-          applyStatusFilters();
-        });
-      }
-    });
-
     async function renderRetentionChart() {
       const canvas = document.getElementById('retentionChart');
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
 
       try {
-        const resp = await fetch(`${API_BASE_URL}/api/data/csv-stats`);
-        if (!resp.ok) throw new Error('stats fail');
-        const stats = await resp.json();
-        const rate = typeof stats.retentionRate === 'number' ? stats.retentionRate : 0;
-        const notRetained = Math.max(0, 100 - rate);
+        console.log('Fetching retention data from:', `${API_BASE_URL}/api/data/term-retention`);
+        const resp = await fetch(`${API_BASE_URL}/api/data/term-retention`);
+        console.log('Response status:', resp.status, resp.statusText);
+        
+        if (!resp.ok) {
+          let errorData;
+          try {
+            errorData = await resp.json();
+          } catch (e) {
+            errorData = { error: `HTTP ${resp.status}: ${resp.statusText}` };
+          }
+          console.error('Error response:', errorData);
+          throw new Error(errorData.message || errorData.error || `Failed to fetch retention data (${resp.status})`);
+        }
+        
+        const data = await resp.json();
+        console.log('Retention data received:', data);
 
-        const data = {
+        // Handle cases where retention cannot be calculated
+        if (data.message || !data.termA || !data.termB) {
+          if (retentionChart) retentionChart.destroy();
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.save();
+          ctx.font = '14px system-ui';
+          ctx.fillStyle = '#6b7280';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(data.message || 'Insufficient data for retention calculation', canvas.width / 2, canvas.height / 2);
+          ctx.restore();
+          return;
+        }
+
+        const rate = data.retentionRate || 0;
+        const retained = data.retained || 0;
+        const notRetained = data.notRetained || 0;
+        const termA = data.termA;
+        const termB = data.termB;
+
+        const chartData = {
           labels: ['Retained', 'Not Retained'],
           datasets: [{
-            data: [rate, notRetained],
+            data: [retained, notRetained],
             backgroundColor: ['#10b981', '#ef4444'],
             borderWidth: 2,
             borderColor: '#fff'
@@ -1508,7 +1528,7 @@
         if (retentionChart) retentionChart.destroy();
         retentionChart = new Chart(ctx, {
           type: 'doughnut',
-          data,
+          data: chartData,
           options: {
             cutout: '65%',
             responsive: true,
@@ -1529,7 +1549,9 @@
                   label: function(context) {
                     const label = context.label || '';
                     const value = context.parsed || 0;
-                    return `${label}: ${value.toFixed(1)}%`;
+                    const total = retained + notRetained;
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} students (${percentage}%)`;
                   }
                 }
               },
@@ -1538,7 +1560,8 @@
                 text: `${rate.toFixed(1)}% Retention Rate`,
                 position: 'top',
                 font: { size: 16, weight: 'bold' },
-                color: '#1f2937'
+                color: '#1f2937',
+                padding: { bottom: 10 }
               }
             }
           },
@@ -1559,14 +1582,44 @@
               ctx.font = '14px system-ui';
               ctx.fillStyle = '#6b7280';
               ctx.fillText('Retention', centerX, centerY + 15);
+              
+              // Add term information below
+              if (termA && termB) {
+                ctx.font = '11px system-ui';
+                ctx.fillStyle = '#9ca3af';
+                const termLabel = `${termA.term_name || `Term ${termA.term_id}`} → ${termB.term_name || `Term ${termB.term_id}`}`;
+                ctx.fillText(termLabel, centerX, centerY + 32);
+              }
               ctx.restore();
             }
           }]
         });
       } catch (error) {
         console.error('Error rendering retention chart:', error);
+        // Show error message on canvas
+        if (retentionChart) retentionChart.destroy();
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#ef4444';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const errorMsg = error.message || 'Error loading retention data';
+        ctx.fillText(errorMsg.length > 40 ? errorMsg.substring(0, 40) + '...' : errorMsg, canvas.width / 2, canvas.height / 2);
+        ctx.restore();
       }
     }
+
+    // Add real-time search for Students Status s
+    document.addEventListener('DOMContentLoaded', () => {
+      const statusSearch = document.getElementById('status-search');
+      if (statusSearch) {
+        statusSearch.addEventListener('input', () => {
+          applyStatusFilters();
+        });
+      }
+    });
 
     async function renderPerformanceChart() {
       const canvas = document.getElementById('performanceChart');
@@ -1579,18 +1632,19 @@
         const data = await resp.json();
 
         // GPA bands with risk-based colors
+        // High risk: < 2.5 (red), Medium risk: 2.5-3.1 (orange), Low risk: >= 3.1 (green)
         const bands = [
-          { label: '<2.0', min: -Infinity, max: 2.0, color: '#dc2626' },
-          { label: '2.0-2.5', min: 2.0, max: 2.5, color: '#ea580c' },
-          { label: '2.5-3.0', min: 2.5, max: 3.0, color: '#f59e0b' },
-          { label: '3.0-3.5', min: 3.0, max: 3.5, color: '#3b82f6' },
-          { label: '3.5-4.0', min: 3.5, max: 4.01, color: '#10b981' }
+          { label: '< 2.0', min: -Infinity, max: 2.0, color: '#dc2626' }, // High risk - red
+          { label: '2.0–2.5', min: 2.0, max: 2.5, color: '#ea580c' }, // High risk - red/orange
+          { label: '2.5–3.0', min: 2.5, max: 3.0, color: '#f59e0b' }, // Medium risk - orange
+          { label: '3.0–3.5', min: 3.0, max: 3.5, color: '#10b981' }, // Low risk - green
+          { label: '3.5–4.0', min: 3.5, max: 4.01, color: '#10b981' } // Low risk - green
         ];
         const counts = bands.map(b => 0);
         let totalStudents = 0;
         
         for (const s of data) {
-          const g = s?.academic?.gpa ?? 0;
+          const g = parseFloat(s?.academic?.gpa) || 0;
           if (g > 0) {
             totalStudents++;
             for (let i = 0; i < bands.length; i++) {
@@ -1619,12 +1673,7 @@
             maintainAspectRatio: false,
             plugins: {
               legend: { 
-                display: true,
-                position: 'top',
-                labels: {
-                  font: { size: 11 },
-                  padding: 10
-                }
+                display: false
               },
               tooltip: {
                 enabled: true,
@@ -1632,17 +1681,16 @@
                   label: function(context) {
                     const value = context.parsed.y;
                     const percentage = totalStudents > 0 ? ((value / totalStudents) * 100).toFixed(1) : 0;
-                    return `${value} students (${percentage}%)`;
-                  },
-                  afterLabel: function(context) {
                     const label = context.label;
-                    if (label === '<2.0' || label === '2.0-2.5' || (label === '2.5-3.0')) {
-                      return '⚠️ High Risk';
-                    } else if (label === '3.0-3.5') {
-                      return '⚠️ Medium Risk';
+                    let riskLevel = '';
+                    if (label === '< 2.0' || label === '2.0–2.5') {
+                      riskLevel = ' (High Risk)';
+                    } else if (label === '2.5–3.0') {
+                      riskLevel = ' (Medium Risk)';
                     } else {
-                      return '✓ Low Risk';
+                      riskLevel = ' (Low Risk)';
                     }
+                    return `${value} students (${percentage}%)${riskLevel}`;
                   }
                 }
               },
@@ -1719,8 +1767,8 @@
           // Count total students per major
           majorTotals.set(major, (majorTotals.get(major) || 0) + 1);
           
-          // Count high-risk students (GPA <= 2.9)
-          if (g > 0 && g <= 2.9) {
+          // Count high-risk students (GPA < 3.1)
+          if (g > 0 && g < 3.1) {
             riskByMajor.set(major, (riskByMajor.get(major) || 0) + 1);
           }
         }
@@ -1814,7 +1862,7 @@
               },
               title: {
                 display: true,
-                text: 'High Risk Students by Major (GPA ≤ 2.9)',
+                text: 'High Risk Students by Major (GPA < 3.1)',
                 position: 'top',
                 font: { size: 14, weight: 'bold' },
                 color: '#1f2937',
@@ -1855,6 +1903,168 @@
         });
       } catch (error) {
         console.error('Error rendering risk chart:', error);
+        // Show error message on canvas
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.save();
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#ef4444';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Error loading chart data', canvas.width / 2, canvas.height / 2);
+        ctx.restore();
+      }
+    }
+
+    async function renderRiskByYearChart() {
+      const canvas = document.getElementById('riskByYearChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/data/csv-students`);
+        if (!resp.ok) throw new Error('students fail');
+        const data = await resp.json();
+
+        // Initialize year counts with risk levels
+        const yearRiskCounts = {
+          'First Year': { high: 0, medium: 0, no: 0 },
+          'Second Year': { high: 0, medium: 0, no: 0 },
+          'Third Year': { high: 0, medium: 0, no: 0 },
+          'Fourth Year': { high: 0, medium: 0, no: 0 },
+          'Graduate': { high: 0, medium: 0, no: 0 }
+        };
+
+        // Risk thresholds: High < 2.9, Medium 2.9-3.2, No >= 3.2
+        for (const s of data) {
+          const g = parseFloat(s?.academic?.gpa) || 0;
+          const year = s.year || 'Unknown';
+          
+          if (yearRiskCounts.hasOwnProperty(year) && g > 0) {
+            if (g < 2.9) {
+              yearRiskCounts[year].high++;
+            } else if (g >= 2.9 && g < 3.2) {
+              yearRiskCounts[year].medium++;
+            } else if (g >= 3.2) {
+              yearRiskCounts[year].no++;
+            }
+          }
+        }
+
+        const labels = Object.keys(yearRiskCounts);
+        const highRiskData = labels.map(year => yearRiskCounts[year].high);
+        const mediumRiskData = labels.map(year => yearRiskCounts[year].medium);
+        const noRiskData = labels.map(year => yearRiskCounts[year].no);
+
+        if (riskByYearChart) riskByYearChart.destroy();
+        riskByYearChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'High Risk (GPA < 2.9)',
+                data: highRiskData,
+                backgroundColor: '#ef4444',
+                borderColor: '#dc2626',
+                borderWidth: 2
+              },
+              {
+                label: 'Medium Risk (2.9 ≤ GPA < 3.2)',
+                data: mediumRiskData,
+                backgroundColor: '#f59e0b',
+                borderColor: '#d97706',
+                borderWidth: 2
+              },
+              {
+                label: 'No Risk (GPA ≥ 3.2)',
+                data: noRiskData,
+                backgroundColor: '#10b981',
+                borderColor: '#059669',
+                borderWidth: 2
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                  font: { size: 11 },
+                  padding: 10,
+                  usePointStyle: true
+                }
+              },
+              tooltip: {
+                enabled: true,
+                callbacks: {
+                  label: function(context) {
+                    const label = context.dataset.label || '';
+                    const value = context.parsed.y;
+                    const total = highRiskData[context.dataIndex] + 
+                                 mediumRiskData[context.dataIndex] + 
+                                 noRiskData[context.dataIndex];
+                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                    return `${label}: ${value} students (${percentage}%)`;
+                  },
+                  footer: function(tooltipItems) {
+                    const index = tooltipItems[0].dataIndex;
+                    const total = highRiskData[index] + mediumRiskData[index] + noRiskData[index];
+                    return `Total: ${total} students`;
+                  }
+                }
+              },
+              title: {
+                display: true,
+                text: 'Risk Level Distribution by Year',
+                position: 'top',
+                font: { size: 14, weight: 'bold' },
+                color: '#1f2937',
+                padding: { bottom: 15 }
+              }
+            },
+            scales: {
+              x: {
+                stacked: true,
+                grid: { display: false },
+                ticks: {
+                  font: { size: 11, weight: '600' },
+                  color: '#374151'
+                },
+                title: {
+                  display: true,
+                  text: 'Academic Year',
+                  font: { size: 12, weight: 'bold' },
+                  color: '#6b7280'
+                }
+              },
+              y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1,
+                  font: { size: 11 },
+                  color: '#6b7280'
+                },
+                grid: {
+                  color: '#e5e7eb',
+                  lineWidth: 1
+                },
+                title: {
+                  display: true,
+                  text: 'Number of Students',
+                  font: { size: 12, weight: 'bold' },
+                  color: '#6b7280'
+                }
+              }
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error rendering risk by year chart:', error);
         // Show error message on canvas
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2891,10 +3101,9 @@
     <div id="analytics" class="tab-content">
       <div class="grid-3">
         <div class="card">
-          <h2><span class="card-icon">📊</span>Retention Rates</h2>
-          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Overall student retention percentage showing retained vs. not retained students.</p>
+          <h2><span class="card-icon">📊</span>Retention Rate</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Percentage of students who continued enrollment into the next term.</p>
           <div style="height:280px; position: relative;"><canvas id="retentionChart"></canvas></div>
-          <div style="margin-top:12px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
         </div>
         <div class="card">
           <h2><span class="card-icon">📈</span>GPA Distribution</h2>
@@ -2902,28 +3111,16 @@
           <div style="height:280px"><canvas id="performanceChart"></canvas></div>
         </div>
         <div class="card">
-          <h2><span class="card-icon">🎯</span>Risk Analysis by Major</h2>
-          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">High-risk students (GPA ≤ 2.9) broken down by academic major.</p>
+          <h2><span class="card-icon">🎯</span>High-Risk Students by Major</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">High-risk students (GPA &lt; 3.1) broken down by academic major.</p>
           <div style="height:280px"><canvas id="riskChart"></canvas></div>
         </div>
       </div>
-      
-      <!-- Additional Analytics Cards -->
       <div class="grid-3" style="margin-top: 24px;">
         <div class="card">
-          <h2><span class="card-icon">📉</span>Risk Level Breakdown</h2>
-          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Complete breakdown of students by risk level categories.</p>
-          <div style="height:280px"><canvas id="riskBreakdownChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h2><span class="card-icon">📚</span>Students by Major</h2>
-          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Total number of students enrolled in each major program.</p>
-          <div style="height:280px"><canvas id="majorDistributionChart"></canvas></div>
-        </div>
-        <div class="card">
-          <h2><span class="card-icon">📅</span>Year Distribution</h2>
-          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Student population distribution across academic years.</p>
-          <div style="height:280px"><canvas id="yearDistributionChart"></canvas></div>
+          <h2><span class="card-icon">📊</span>Risk Level by Year</h2>
+          <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Distribution of risk levels across different academic years.</p>
+          <div style="height:280px"><canvas id="riskByYearChart"></canvas></div>
         </div>
       </div>
     </div>
