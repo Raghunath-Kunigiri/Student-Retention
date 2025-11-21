@@ -3543,23 +3543,6 @@
       saveStudentStatuses();
     }
 
-    // Update contact status when dropdown changes (global function for inline handlers)
-    // window.updateContactStatus = function(studentId, status) {
-    //   // Convert studentId to number if it's a string
-    //   const id = typeof studentId === 'string' ? parseInt(studentId) || studentId : studentId;
-    //   setStudentStatus(id, status);
-    //   console.log(`Student ${id} contact status updated to: ${status}`);
-      
-    //   // Show visual feedback
-    //   const dropdown = document.getElementById(`contact-status-${studentId}`);
-    //   if (dropdown) {
-    //     const originalBg = dropdown.style.background;
-    //     dropdown.style.background = '#d1fae5';
-    //     setTimeout(() => {
-    //       dropdown.style.background = originalBg;
-    //     }, 500);
-    //   }
-    // };
 
     async function loadStatusStudents() {
       const listContainer = document.getElementById('status-student-list');
@@ -3712,17 +3695,6 @@
             ${email ? `<div class="student-contact" style="font-size: 12px; color: #6b7280; margin-top: 4px;">📧 ${escapeHtml(email)}</div>` : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
-            // <select 
-            //   id="contact-status-${studentId}" 
-            //   class="contact-status-dropdown"
-            //   style="padding: 8px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 13px; background: white; cursor: pointer; min-width: 180px; font-weight: 500; transition: all 0.2s ease;"
-            //   onchange="updateContactStatus('${studentId}', this.value)"
-            // >
-            //   <option value="not-contacted" ${status === 'not-contacted' ? 'selected' : ''}>Not Contacted</option>
-            //   <option value="contacted" ${status === 'contacted' ? 'selected' : ''}>Contacted</option>
-            //   <option value="consult-advised" ${status === 'consult-advised' ? 'selected' : ''}>Consult Advised</option>
-            //   <option value="follow-up-needed" ${status === 'follow-up-needed' ? 'selected' : ''}>Follow-up Needed</option>
-            // </select>
             <span class="chip ${risk.level}">${risk.text}</span>
           </div>
         `;
