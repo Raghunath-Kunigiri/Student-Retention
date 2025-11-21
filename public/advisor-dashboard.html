@@ -7,9 +7,8 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <title>Advisor Dashboard - Student Retention System</title>
-  <link rel="stylesheet" href="../src/styles/variables.css" />
-  <link rel="stylesheet" href="../src/styles/cursor.css" />
-  <link rel="stylesheet" href="../src/styles/interactions.css" />
+  <link rel="stylesheet" href="styles/theme.css" />
+  <script src="js/accessibility.js" defer></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -459,6 +458,298 @@
   <link rel="stylesheet" href="styles/theme.css" />
   <script type="module" src="../src/index.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Help Request Responses Dark Theme Styles -->
+  <style>
+    :root {
+      --hr-bg: #0f1724;
+      --hr-card: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      --hr-muted: #64748b;
+      --hr-accent: #2563eb;
+      --hr-accent-2: #06b6d4;
+      --hr-glass: rgba(255,255,255,0.03);
+      --hr-radius: 12px;
+      --hr-shadow-soft: 0 8px 30px rgba(2,6,23,.6);
+      --hr-shadow-light: 0 2px 8px rgba(0,0,0,0.08);
+      --hr-ease: cubic-bezier(.2,.9,.3,1);
+    }
+
+    /* Component layout */
+    .hr-card { 
+      background: var(--hr-card); 
+      border-radius: var(--hr-radius); 
+      padding: 18px; 
+      border: 1px solid rgba(255,255,255,0.03); 
+      box-shadow: var(--hr-shadow-soft); 
+      color: #e6eef8; 
+      margin-bottom: 16px;
+    }
+
+    .hr-header { 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      margin-bottom: 12px; 
+    }
+
+    .hr-title { 
+      font-weight: 700; 
+      font-size: 15px; 
+      color: #cbd5e1; 
+    }
+
+    .hr-sub { 
+      font-size: 12px; 
+      color: #64748b; 
+      font-weight: 500;
+    }
+
+    /* Grid/list */
+    .hr-list { 
+      display: grid; 
+      gap: 14px; 
+      margin-top: 12px; 
+    }
+
+    /* Card */
+    .hr-item {
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.03);
+      box-shadow: var(--hr-shadow-light);
+      transition: transform .18s var(--hr-ease), box-shadow .18s;
+      display: block;
+    }
+
+    .hr-item:hover { 
+      transform: translateY(-6px); 
+      box-shadow: 0 18px 36px rgba(2,6,23,0.6); 
+    }
+
+    /* Header row inside card */
+    .hr-row { 
+      display: flex; 
+      justify-content: space-between; 
+      gap: 12px; 
+      align-items: flex-start; 
+      margin-bottom: 12px; 
+    }
+
+    .hr-left { 
+      display: flex; 
+      gap: 12px; 
+      align-items: center; 
+      min-width: 0; 
+    }
+
+    .hr-avatar {
+      width: 48px; 
+      height: 48px; 
+      border-radius: 10px; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      font-weight: 700; 
+      font-size: 18px; 
+      color: white; 
+      background: linear-gradient(135deg, var(--hr-accent) 0%, var(--hr-accent-2) 100%);
+      box-shadow: 0 6px 18px rgba(37,99,235,0.12);
+      flex-shrink: 0;
+    }
+
+    .hr-meta { 
+      min-width: 0; 
+    }
+
+    .hr-name { 
+      font-weight: 700; 
+      font-size: 16px; 
+      color: #cbd5e1; 
+      white-space: nowrap; 
+      overflow: hidden; 
+      text-overflow: ellipsis; 
+    }
+
+    .hr-meta-sub { 
+      font-size: 13px; 
+      color: #64748b; 
+      display: flex; 
+      gap: 8px; 
+      align-items: center; 
+      margin-top: 6px; 
+    }
+
+    /* Right actions */
+    .hr-actions { 
+      display: flex; 
+      gap: 8px; 
+      align-items: center; 
+      flex-wrap: wrap; 
+    }
+
+    .hr-cta {
+      background: linear-gradient(135deg, var(--hr-accent) 0%, #1e40af 100%);
+      color: white; 
+      border: 0; 
+      padding: 8px 12px; 
+      border-radius: 10px; 
+      cursor: pointer; 
+      display: inline-flex; 
+      gap: 8px; 
+      align-items: center;
+      box-shadow: 0 8px 20px rgba(37,99,235,0.12); 
+      transition: transform .14s, box-shadow .14s;
+      font-weight: 600; 
+      font-size: 13px;
+    }
+
+    .hr-cta:hover { 
+      transform: translateY(-2px); 
+      box-shadow: 0 18px 40px rgba(37,99,235,0.16); 
+    }
+
+    /* Status badge */
+    .hr-status { 
+      padding: 6px 10px; 
+      border-radius: 8px; 
+      font-size: 12px; 
+      font-weight: 600; 
+      display: inline-flex; 
+      gap: 8px; 
+      align-items: center; 
+    }
+
+    .status-pending { 
+      background: #fff7ed; 
+      color: #92400e; 
+      border-left: 4px solid #f59e0b; 
+    }
+
+    .status-progress { 
+      background: #e8f0ff; 
+      color: #1e40af; 
+      border-left: 4px solid #3b82f6; 
+    }
+
+    .status-resolved { 
+      background: #ecfdf5; 
+      color: #065f46; 
+      border-left: 4px solid #10b981; 
+    }
+
+    .status-follow { 
+      background: #fff1f2; 
+      color: #991b1b; 
+      border-left: 4px solid #ef4444; 
+    }
+
+    /* generic fallback */
+    .status-default { 
+      background: #f3f4f6; 
+      color: #374151; 
+      border-left: 4px solid #9ca3af; 
+    }
+
+    /* Details grid */
+    .hr-grid { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+      gap: 12px; 
+      margin-top: 6px; 
+    }
+
+    .hr-card-mini {
+      padding: 12px; 
+      border-radius: 10px; 
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); 
+      border: 1px solid rgba(255,255,255,0.02);
+    }
+
+    .hr-mini-title { 
+      font-size: 11px; 
+      text-transform: uppercase; 
+      letter-spacing: 0.6px; 
+      color: var(--hr-muted); 
+      font-weight: 700; 
+      margin-bottom: 6px; 
+      display: flex; 
+      align-items: center; 
+      gap: 8px; 
+    }
+
+    .hr-mini-value { 
+      font-weight: 600; 
+      color: #cbd5e1; 
+      font-size: 14px; 
+      word-break: break-word; 
+    }
+
+    /* Response notes */
+    .hr-notes { 
+      margin-top: 10px; 
+      padding: 12px; 
+      border-radius: 8px; 
+      background: rgba(255,255,255,0.02); 
+      border: 1px solid rgba(255,255,255,0.05); 
+      color: #b8d4f0; 
+      line-height: 1.6; 
+      white-space: pre-wrap; 
+    }
+
+    /* Small edit button */
+    .hr-edit-btn { 
+      background: transparent; 
+      border: 1px solid rgba(255,255,255,0.04); 
+      color: var(--hr-accent); 
+      padding: 6px 10px; 
+      border-radius: 8px; 
+      cursor: pointer; 
+      font-weight: 600; 
+      display: inline-flex; 
+      gap: 8px; 
+      align-items: center; 
+      transition: all 0.2s;
+    }
+
+    .hr-edit-btn:hover { 
+      background: rgba(37,99,235,0.06); 
+      transform: translateY(-2px); 
+    }
+
+    /* Utilities */
+    .muted { 
+      color: var(--hr-muted); 
+      font-size: 13px; 
+    }
+
+    .icon { 
+      font-size: 16px; 
+      display: inline-block; 
+      line-height: 1; 
+    }
+
+    /* Focus states for keyboard users */
+    .hr-item:focus-within { 
+      box-shadow: 0 18px 36px rgba(2,6,23,0.6); 
+      transform: translateY(-6px); 
+      outline: 3px solid rgba(37,99,235,0.08); 
+      outline-offset: 4px; 
+    }
+
+    /* Responsive tweak */
+    @media (max-width: 640px) {
+      .hr-row { 
+        flex-direction: column; 
+        align-items: stretch; 
+        gap: 12px; 
+      }
+      .hr-actions { 
+        justify-content: flex-start; 
+      }
+    }
+  </style>
+  
   <script>
     let currentAdvisor = null;
     let students = [];
@@ -780,7 +1071,7 @@
           console.error('Error loading saved responses:', e);
         }
 
-        // Display responses with advisor information
+        // Display responses with advisor information using new dark theme styling
         responsesList.innerHTML = responses.map((resp, index) => {
           const timestamp = resp['Timestamp'] || resp['timestamp'] || '';
           const studentName = resp['Name'] || resp['name'] || 'Unknown';
@@ -793,113 +1084,17 @@
           
           const savedResponses = helpRequestResponses[`${timestamp}_${studentEmail.toLowerCase()}`] || [];
           
-          // Format timestamp
-          let formattedDate = timestamp;
-          if (timestamp) {
-            try {
-              const date = new Date(timestamp);
-              formattedDate = date.toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-            } catch (e) {
-              // Keep original timestamp if parsing fails
-            }
-          }
-
-          // Format saved responses
-          let savedResponsesHtml = '';
-          if (savedResponses.length > 0) {
-            savedResponsesHtml = `
-              <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <strong style="color: #374151; font-size: 14px;">📝 Advisor Responses (${savedResponses.length})</strong>
-                </div>
-                ${savedResponses.map(savedResp => {
-                  const contactDate = new Date(savedResp.contactDate);
-                  const formattedContactDate = contactDate.toLocaleString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
-                  const statusColors = {
-                    'Pending': '#fef3c7',
-                    'In Progress': '#dbeafe',
-                    'Resolved': '#d1fae5',
-                    'Follow-up Required': '#fee2e2'
-                  };
-                  return `
-                    <div style="margin-bottom: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; border-left: 4px solid ${statusColors[savedResp.status] || '#e5e7eb'};">
-                      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <div style="flex: 1;">
-                          <div style="font-weight: 600; color: #1f2937; font-size: 13px;">${escapeHtml(savedResp.contactMethod)} - ${escapeHtml(savedResp.advisorName)}</div>
-                          <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">${formattedContactDate}</div>
-                        </div>
-                        <div style="display: flex; gap: 4px;">
-                          <span style="padding: 2px 8px; background: ${statusColors[savedResp.status] || '#e5e7eb'}; border-radius: 4px; font-size: 11px; color: #374151;">${escapeHtml(savedResp.status)}</span>
-                          <button onclick="editResponse('${savedResp._id}', '${escapeJs(timestamp)}', '${escapeJs(studentEmail)}', '${escapeJs(studentName)}', '${escapeJs(phone)}', '${escapeJs(savedResp.contactMethod)}', '${escapeJs(savedResp.contactDate)}', '${escapeJs(savedResp.responseNotes || '')}', '${escapeJs(savedResp.status)}')" style="background: none; border: none; cursor: pointer; color: #3b82f6; font-size: 12px; padding: 2px 6px;" title="Edit response">✏️</button>
-                        </div>
-                      </div>
-                      ${savedResp.responseNotes ? `
-                        <div style="margin-top: 6px; font-size: 12px; color: #1f2937; white-space: pre-wrap;">${escapeHtml(savedResp.responseNotes)}</div>
-                      ` : ''}
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            `;
-          }
-
-          return `
-            <div class="list-item" style="border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; background: #fff;">
-              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-                <div style="flex: 1;">
-                  <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px; font-size: 16px;">${escapeHtml(studentName)}</div>
-                  <div style="font-size: 12px; color: #6b7280;">${formattedDate}</div>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <span class="chip info" style="background: #dbeafe; color: #1e40af;">${escapeHtml(category)}</span>
-                  ${advisor && advisor !== 'Not assigned' ? `<span class="chip" style="background: #fef3c7; color: #92400e; font-size: 11px;">👤 ${escapeHtml(advisor)}</span>` : ''}
-                  <button onclick="openResponseModal('${escapeJs(timestamp)}', '${escapeJs(studentEmail)}', '${escapeJs(studentName)}', '${escapeJs(phone)}')" class="btn secondary" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">+ Add Response</button>
-                </div>
-              </div>
-              
-              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
-                <div style="margin-bottom: 8px;">
-                  <strong style="color: #374151; font-size: 13px;">Email:</strong>
-                  <a href="mailto:${escapeHtml(studentEmail)}" style="color: #3b82f6; font-size: 13px; margin-left: 8px; text-decoration: none; cursor: pointer;" title="Click to send email">${escapeHtml(studentEmail)} ✉️</a>
-                </div>
-                <div style="margin-bottom: 8px;">
-                  <strong style="color: #374151; font-size: 13px;">Phone:</strong>
-                  <span style="color: #6b7280; font-size: 13px; margin-left: 8px;">${escapeHtml(phone)}</span>
-                </div>
-                ${advisor && advisor !== 'Not assigned' ? `
-                <div style="margin-bottom: 8px;">
-                  <strong style="color: #374151; font-size: 13px;">Assigned Advisor:</strong>
-                  <span style="color: #6b7280; font-size: 13px; margin-left: 8px;">${escapeHtml(advisor)}</span>
-                </div>
-                ` : ''}
-                ${message ? `
-                <div style="margin-bottom: 8px;">
-                  <strong style="color: #374151; font-size: 13px;">Message:</strong>
-                  <div style="color: #1f2937; font-size: 13px; margin-top: 4px; padding: 8px; background: #f9fafb; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(message)}</div>
-                </div>
-                ` : ''}
-                ${otherDetails ? `
-                <div style="margin-bottom: 8px;">
-                  <strong style="color: #374151; font-size: 13px;">Additional Details:</strong>
-                  <div style="color: #1f2937; font-size: 13px; margin-top: 4px; padding: 8px; background: #f9fafb; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(otherDetails)}</div>
-                </div>
-                ` : ''}
-                ${savedResponsesHtml}
-              </div>
-            </div>
-          `;
+          // Use the new formatting function
+          return formatSavedResponsesBlock(savedResponses, {
+            studentName,
+            studentEmail,
+            phone,
+            category,
+            advisor,
+            message,
+            otherDetails,
+            timestamp
+          });
         }).join('');
         
         // Add summary at the top
@@ -971,22 +1166,39 @@
               return;
             }
 
-            searchResults.innerHTML = students.map(student => `
-              <div 
-                onclick="selectStudentFromSearch(${student.studentId}, '${escapeJs(student.email)}', '${escapeJs(student.firstName + ' ' + student.lastName)}'); document.getElementById('student-search-results').style.display = 'none';" 
-                style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;"
-                onmouseover="this.style.background='#f3f4f6'"
-                onmouseout="this.style.background='white'"
-              >
-                <div style="flex: 1;">
-                  <div style="font-weight: 500; color: #1f2937; font-size: 14px;">${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</div>
-                  <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">ID: ${student.studentId} | ${escapeHtml(student.email)}</div>
-                  ${student.phone && student.phone !== 'Not provided' ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">📞 ${escapeHtml(student.phone)}</div>` : ''}
+            // Get initials for avatar
+            const getInitials = (name) => name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+            
+            searchResults.innerHTML = students.map((student, index) => {
+              const fullName = `${student.firstName} ${student.lastName}`;
+              const initials = getInitials(fullName);
+              return `
+                <div 
+                  class="search-result-item"
+                  role="option"
+                  tabindex="0"
+                  aria-selected="false"
+                  data-index="${index}"
+                  onclick="event.stopPropagation(); selectStudentFromSearch(${student.studentId}, '${escapeJs(student.email)}', '${escapeJs(fullName)}');" 
+                  onkeydown="if(event.key === 'Enter') { event.stopPropagation(); event.preventDefault(); selectStudentFromSearch(${student.studentId}, '${escapeJs(student.email)}', '${escapeJs(fullName)}'); }"
+                >
+                  <div class="avatar" style="width: 44px; height: 44px; border-radius: var(--radius-sm); background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 0.875rem; flex-shrink: 0;">${initials}</div>
+                  <div style="flex: 1;">
+                    <div class="name" style="font-weight: 700; color: var(--text-primary); font-size: 0.875rem;">${escapeHtml(fullName)}</div>
+                    <div class="desc" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">ID: ${student.studentId} | ${escapeHtml(student.email)}</div>
+                    ${student.phone && student.phone !== 'Not provided' ? `<div style="font-size: 0.688rem; color: var(--text-muted); margin-top: 2px;">📞 ${escapeHtml(student.phone)}</div>` : ''}
+                  </div>
+                  <div style="color: var(--accent-2); font-size: 0.875rem; margin-left: var(--space-sm);">→</div>
                 </div>
-                <div style="color: #3b82f6; font-size: 14px; margin-left: 8px;">→</div>
-              </div>
-            `).join('');
+              `;
+            }).join('');
             searchResults.style.display = 'block';
+            searchResults.setAttribute('aria-expanded', 'true');
+            
+            // Update keyboard navigation items
+            if (window.SearchKeyboardNav && window.searchKeyboardNav) {
+              window.searchKeyboardNav.updateItems();
+            }
           }
         } catch (error) {
           // Ignore aborted requests
@@ -1010,40 +1222,233 @@
     }
 
     async function selectStudentFromSearch(studentId, email, name) {
+      console.log('selectStudentFromSearch called with:', { studentId, email, name });
+      
       // Close search results
       const searchResults = document.getElementById('student-search-results');
-      searchResults.style.display = 'none';
+      if (searchResults) {
+        searchResults.style.display = 'none';
+        searchResults.setAttribute('aria-expanded', 'false');
+      }
+      
+      // Validate email
+      if (!email) {
+        console.error('Email is required to show student details');
+        alert('Email is required to load student details.');
+        return;
+      }
+      
+      console.log('Opening student details modal:', { studentId, email, name });
+      
+      // Store selected student for fallback
+      window.lastSelectedStudent = {
+        studentId: studentId,
+        email: email,
+        name: name
+      };
+      
+      // Store basic info for fallback
+      window.lastSelectedStudent = { studentId, email, name };
       
       // Show student details modal
-      await showStudentDetailsModal(studentId, email);
+      try {
+        await showStudentDetailsModal(studentId || null, email, name);
+      } catch (error) {
+        console.error('Error in selectStudentFromSearch:', error);
+        alert('Error opening student details: ' + error.message);
+      }
     }
 
-    async function showStudentDetailsModal(studentId, email) {
+    async function showStudentDetailsModal(studentId, email, name = null) {
       const modal = document.getElementById('student-details-modal');
+      if (!modal) {
+        console.error('Student details modal not found');
+        return;
+      }
+      
+      const modalEl = modal.querySelector('.modal');
+      if (!modalEl) {
+        console.error('Modal element not found');
+        return;
+      }
+      
       const content = document.getElementById('student-details-content');
+      if (!content) {
+        console.error('Student details content element not found');
+        return;
+      }
+      
+      // Validate inputs
+      if (!email) {
+        console.error('Email is required');
+        content.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: var(--danger);">
+            <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">Error</div>
+            <div style="color: var(--text-muted); font-size: 14px;">Email is required to load student details.</div>
+            <button onclick="closeStudentDetailsModal()" class="btn secondary" style="margin-top: 20px; padding: 10px 20px;">Close</button>
+          </div>
+        `;
+        modal.style.display = 'flex';
+        setTimeout(() => modalEl.classList.add('open'), 20);
+        return;
+      }
       
       // Show modal with loading state
+      console.log('Showing modal, display set to flex');
       modal.style.display = 'flex';
-      content.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: #6b7280;">
-          <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-          <div style="margin-top: 12px;">Loading student details...</div>
-        </div>
-      `;
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.right = '0';
+      modal.style.bottom = '0';
+      modal.style.zIndex = '10000';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.style.background = 'rgba(0, 0, 0, 0.5)';
+      modal.style.backdropFilter = 'blur(4px)';
+      
+      // Force reflow to ensure display change is applied
+      void modal.offsetHeight;
+      
+      console.log('Setting loading content');
+      if (content) {
+        // Show basic info immediately if we have it
+        if (name && email) {
+          content.innerHTML = `
+            <div style="padding: 20px;">
+              <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                <div style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">${escapeHtml(name)}</div>
+                <div style="font-size: 14px; opacity: 0.9;">Email: ${escapeHtml(email)}</div>
+                ${studentId ? `<div style="font-size: 14px; opacity: 0.9;">Student ID: ${studentId}</div>` : ''}
+              </div>
+              <div class="loading" style="margin-top: 20px;">
+                <div class="loader"></div>
+                <div>Loading full student details...</div>
+              </div>
+            </div>
+          `;
+        } else {
+          content.innerHTML = `
+            <div class="loading">
+              <div class="loader"></div>
+              <div>Loading student details...</div>
+            </div>
+          `;
+        }
+      } else {
+        console.error('Content element is null!');
+      }
+      
+      // Make modal visible immediately - force visibility
+      setTimeout(() => {
+        console.log('Adding open class to modal');
+        if (modalEl) {
+          // Force visibility with inline styles
+          modalEl.style.transform = 'translateY(0) scale(1)';
+          modalEl.style.opacity = '1';
+          modalEl.style.display = 'block';
+          modalEl.classList.add('open');
+          console.log('Modal should now be visible');
+        }
+        // Initialize focus trap
+        if (window.FocusTrap) {
+          try {
+            window.studentModalFocusTrap = new window.FocusTrap(modalEl);
+            window.studentModalFocusTrap.init();
+          } catch (e) {
+            console.warn('Focus trap initialization failed:', e);
+          }
+        }
+      }, 10);
       
       try {
-        // Fetch full student details
-        const response = await fetch(`${API_BASE_URL}/api/help-request-responses/student-details?studentId=${studentId}&email=${encodeURIComponent(email)}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to load student details');
+        // Build API URL - handle both studentId and email
+        let apiUrl = `${API_BASE_URL}/api/help-request-responses/student-details?email=${encodeURIComponent(email)}`;
+        if (studentId && studentId !== 'null' && studentId !== 'undefined') {
+          apiUrl += `&studentId=${encodeURIComponent(studentId)}`;
         }
         
-        const data = await response.json();
+        console.log('Fetching student details from:', apiUrl);
+        
+        // Fetch full student details
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          let errorMessage = `Failed to load student details: ${response.status} ${response.statusText}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.error || errorData.message) {
+              errorMessage = errorData.error || errorData.message;
+            }
+          } catch (e) {
+            try {
+              const errorText = await response.text();
+              if (errorText) {
+                errorMessage += ` - ${errorText}`;
+              }
+            } catch (e2) {
+              // Ignore if we can't read error text
+            }
+          }
+          console.error('API Error:', response.status, errorMessage);
+          throw new Error(errorMessage);
+        }
+        
+        let data;
+        try {
+          data = await response.json();
+          console.log('Student data received:', data);
+        } catch (e) {
+          console.error('Failed to parse JSON response:', e);
+          throw new Error('Invalid response from server. Please try again.');
+        }
+        
+        if (!data || typeof data !== 'object') {
+          throw new Error('Invalid response from server');
+        }
+        
         const student = data.student;
         
         if (!student) {
-          throw new Error('Student not found');
+          // Fallback: show basic info from search if available
+          if (window.lastSelectedStudent && window.lastSelectedStudent.email === email) {
+            console.log('Student not found in API, showing fallback info');
+            const fallbackStudent = window.lastSelectedStudent;
+            content.innerHTML = `
+              <div style="display: grid; gap: 20px;">
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 8px;">
+                  <div style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">${escapeHtml(fallbackStudent.name || 'Student')}</div>
+                  <div style="font-size: 14px; opacity: 0.9;">Email: ${escapeHtml(fallbackStudent.email)}</div>
+                  ${fallbackStudent.studentId ? `<div style="font-size: 14px; opacity: 0.9;">Student ID: ${fallbackStudent.studentId}</div>` : ''}
+                </div>
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #f9fafb;">
+                  <div style="font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">📧 Contact Information</div>
+                  <div style="display: grid; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <span style="font-weight: 500; color: #6b7280; min-width: 80px;">Email:</span>
+                      <a href="mailto:${escapeHtml(fallbackStudent.email)}" style="color: #3b82f6; text-decoration: none; font-weight: 500;">${escapeHtml(fallbackStudent.email)} ✉️</a>
+                    </div>
+                  </div>
+                </div>
+                <div style="padding: 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                  <div style="font-weight: 600; color: #92400e; margin-bottom: 8px;">⚠️ Limited Information</div>
+                  <div style="color: #92400e; font-size: 14px;">Full student details could not be loaded from the database. Only basic information is available.</div>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+                  <button onclick="window.location.href='mailto:${escapeHtml(fallbackStudent.email)}';" class="btn primary" style="padding: 10px 20px;">📧 Send Email</button>
+                  <button onclick="closeStudentDetailsModal()" class="btn secondary" style="padding: 10px 20px;">Close</button>
+                </div>
+              </div>
+            `;
+            return;
+          }
+          throw new Error('Student not found in database. Please check the email address.');
         }
         
         // Format birth date
@@ -1074,6 +1479,23 @@
         }
         
         // Display student details
+        console.log('Displaying student details for:', student);
+        if (!content) {
+          console.error('Content element is null when trying to display student details!');
+          // Try to get it again
+          content = document.getElementById('student-details-content');
+          if (!content) {
+            alert('Error: Cannot display student details. Please refresh the page.');
+            return;
+          }
+        }
+        
+        // Ensure modal is visible
+        if (modalEl) {
+          modalEl.style.transform = 'translateY(0) scale(1)';
+          modalEl.style.opacity = '1';
+        }
+        
         content.innerHTML = `
           <div style="display: grid; gap: 20px;">
             <!-- Header Section -->
@@ -1188,49 +1610,196 @@
         `;
       } catch (error) {
         console.error('Error loading student details:', error);
-        content.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: #dc2626;">
-            <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
-            <div style="font-weight: 600; margin-bottom: 8px;">Error Loading Student Details</div>
-            <div style="color: #6b7280; font-size: 14px;">${escapeHtml(error.message)}</div>
-            <button onclick="closeStudentDetailsModal()" class="btn secondary" style="margin-top: 20px; padding: 10px 20px;">Close</button>
-          </div>
-        `;
+        
+        // Ensure modal is visible even on error
+        if (modalEl) {
+          modalEl.style.transform = 'translateY(0) scale(1)';
+          modalEl.style.opacity = '1';
+        }
+        
+        // Show fallback info if we have it
+        if (window.lastSelectedStudent && window.lastSelectedStudent.email === email) {
+          const fallback = window.lastSelectedStudent;
+          if (content) {
+            content.innerHTML = `
+              <div style="display: grid; gap: 20px; padding: 20px;">
+                <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 20px; border-radius: 8px;">
+                  <div style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">${escapeHtml(fallback.name || 'Student')}</div>
+                  <div style="font-size: 14px; opacity: 0.9;">Email: ${escapeHtml(fallback.email)}</div>
+                  ${fallback.studentId ? `<div style="font-size: 14px; opacity: 0.9;">Student ID: ${fallback.studentId}</div>` : ''}
+                </div>
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #f9fafb;">
+                  <div style="font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">📧 Contact Information</div>
+                  <div style="display: grid; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                      <span style="font-weight: 500; color: #6b7280; min-width: 80px;">Email:</span>
+                      <a href="mailto:${escapeHtml(fallback.email)}" style="color: #3b82f6; text-decoration: none; font-weight: 500;">${escapeHtml(fallback.email)} ✉️</a>
+                    </div>
+                  </div>
+                </div>
+                <div style="padding: 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                  <div style="font-weight: 600; color: #92400e; margin-bottom: 8px;">⚠️ Limited Information</div>
+                  <div style="color: #92400e; font-size: 14px;">Full student details could not be loaded. Error: ${escapeHtml(error.message)}</div>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+                  <button onclick="window.location.href='mailto:${escapeHtml(fallback.email)}';" class="btn primary" style="padding: 10px 20px;">📧 Send Email</button>
+                  <button onclick="closeStudentDetailsModal()" class="btn secondary" style="padding: 10px 20px;">Close</button>
+                </div>
+              </div>
+            `;
+          }
+        } else {
+          if (content) {
+            content.innerHTML = `
+              <div style="text-align: center; padding: 40px; color: #dc2626;">
+                <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+                <div style="font-weight: 600; margin-bottom: 8px; color: #1f2937;">Error Loading Student Details</div>
+                <div style="color: #6b7280; font-size: 14px; margin-bottom: 16px;">${escapeHtml(error.message)}</div>
+                <div style="color: #6b7280; font-size: 12px; margin-bottom: 20px;">
+                  Email: ${escapeHtml(email || 'Not provided')}<br>
+                  Student ID: ${studentId || 'Not provided'}
+                </div>
+                <button onclick="closeStudentDetailsModal()" class="btn secondary" style="padding: 10px 20px;">Close</button>
+              </div>
+            `;
+          }
+        }
       }
     }
 
     function closeStudentDetailsModal() {
+      console.log('closeStudentDetailsModal called');
       const modal = document.getElementById('student-details-modal');
-      modal.style.display = 'none';
+      if (!modal) {
+        console.error('Modal not found');
+        return;
+      }
+      
+      const modalEl = modal.querySelector('.modal');
+      if (!modalEl) {
+        console.error('Modal element not found');
+        modal.style.display = 'none';
+        return;
+      }
+      
+      // Destroy focus trap if exists
+      if (window.studentModalFocusTrap) {
+        window.studentModalFocusTrap.destroy();
+        window.studentModalFocusTrap = null;
+      }
+      
+      modalEl.classList.remove('open');
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 220);
     }
 
     // Response modal functions
     function openResponseModal(timestamp, studentEmail, studentName, studentPhone, responseId = null) {
+      console.log('openResponseModal called with:', { timestamp, studentEmail, studentName, studentPhone, responseId });
+      
       const modal = document.getElementById('response-modal');
+      if (!modal) {
+        console.error('Response modal element not found!');
+        alert('Error: Response modal not found. Please refresh the page.');
+        return;
+      }
+      
+      const modalEl = modal.querySelector('.modal');
+      if (!modalEl) {
+        console.error('Modal inner element not found!');
+        alert('Error: Modal content not found. Please refresh the page.');
+        return;
+      }
+      
       const modalTitle = document.getElementById('response-modal-title');
+      const form = document.getElementById('response-form');
+      
+      if (!form) {
+        console.error('Response form not found!');
+      }
       
       if (responseId) {
-        modalTitle.textContent = 'Edit Response';
+        if (modalTitle) modalTitle.textContent = 'Edit Response';
       } else {
-        modalTitle.textContent = 'Add Response';
+        if (modalTitle) modalTitle.textContent = 'Add Response';
         // Set default date/time to now
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        document.getElementById('response-contact-date').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        const dateInput = document.getElementById('response-contact-date');
+        if (dateInput) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
       }
       
       // Set form values
-      document.getElementById('response-id').value = responseId || '';
-      document.getElementById('response-timestamp').value = timestamp || '';
-      document.getElementById('response-student-email').value = studentEmail || '';
-      document.getElementById('response-student-name').value = studentName || '';
-      document.getElementById('response-student-phone').value = studentPhone || '';
+      const idInput = document.getElementById('response-id');
+      const timestampInput = document.getElementById('response-timestamp');
+      const emailInput = document.getElementById('response-student-email');
+      const nameInput = document.getElementById('response-student-name');
+      const phoneInput = document.getElementById('response-student-phone');
       
+      if (idInput) idInput.value = responseId || '';
+      if (timestampInput) timestampInput.value = timestamp || '';
+      if (emailInput) emailInput.value = studentEmail || '';
+      if (nameInput) nameInput.value = studentName || '';
+      if (phoneInput) phoneInput.value = studentPhone || '';
+      
+      // Show modal with proper styling - force visibility
       modal.style.display = 'flex';
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.right = '0';
+      modal.style.bottom = '0';
+      modal.style.zIndex = '10000';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.style.background = 'rgba(0, 0, 0, 0.5)';
+      modal.style.backdropFilter = 'blur(4px)';
+      modal.style.visibility = 'visible';
+      
+      // Force modal content to be visible immediately
+      if (modalEl) {
+        modalEl.style.setProperty('transform', 'translateY(0) scale(1)', 'important');
+        modalEl.style.setProperty('opacity', '1', 'important');
+        modalEl.style.setProperty('display', 'block', 'important');
+        modalEl.style.setProperty('visibility', 'visible', 'important');
+        modalEl.style.setProperty('background', '#ffffff', 'important');
+        modalEl.style.setProperty('color', '#1e293b', 'important');
+        modalEl.classList.add('open');
+      }
+      
+      // Force form to be visible
+      if (form) {
+        form.style.setProperty('display', 'grid', 'important');
+        form.style.setProperty('visibility', 'visible', 'important');
+        form.style.setProperty('opacity', '1', 'important');
+      }
+      
+      // Force reflow
+      void modal.offsetHeight;
+      
+      console.log('Modal opened, checking visibility...');
+      console.log('Modal display:', modal.style.display);
+      console.log('ModalEl opacity:', modalEl ? modalEl.style.opacity : 'N/A');
+      console.log('Form display:', form ? form.style.display : 'N/A');
+      
+      // Initialize focus trap
+      setTimeout(() => {
+        if (window.FocusTrap && modalEl) {
+          try {
+            window.responseModalFocusTrap = new window.FocusTrap(modalEl);
+            window.responseModalFocusTrap.init();
+          } catch (e) {
+            console.warn('Focus trap initialization failed:', e);
+          }
+        }
+      }, 10);
     }
 
     function editResponse(responseId, timestamp, studentEmail, studentName, studentPhone, contactMethod, contactDate, notes, status) {
@@ -1262,9 +1831,30 @@
 
     function closeResponseModal() {
       const modal = document.getElementById('response-modal');
-      modal.style.display = 'none';
-      document.getElementById('response-form').reset();
-      document.getElementById('response-id').value = '';
+      const modalEl = modal.querySelector('.modal');
+      
+      // Animate out
+      if (modalEl) {
+        modalEl.style.transform = 'translateY(20px) scale(0.98)';
+        modalEl.style.opacity = '0';
+        modalEl.classList.remove('open');
+      }
+      
+      // Hide modal after animation
+      setTimeout(() => {
+        modal.style.display = 'none';
+        document.getElementById('response-form').reset();
+        document.getElementById('response-id').value = '';
+        
+        // Clean up focus trap
+        if (window.responseModalFocusTrap) {
+          try {
+            window.responseModalFocusTrap.destroy();
+          } catch (e) {
+            console.warn('Focus trap cleanup failed:', e);
+          }
+        }
+      }, 220);
     }
 
     async function saveResponse(event) {
@@ -1389,6 +1979,124 @@
         .replace(/"/g, '\\"')
         .replace(/\n/g, '\\n')
         .replace(/\r/g, '\\r');
+    }
+
+    /**
+     * formatSavedResponsesBlock: returns an HTML string for a set of saved responses + parent item details.
+     * Uses the new dark theme styling for Help Request Responses.
+     */
+    function formatSavedResponsesBlock(responses, student = {}) {
+      // Build saved responses area
+      let savedResponsesHtml = '';
+      if (Array.isArray(responses) && responses.length > 0) {
+        savedResponsesHtml = `
+          <div style="margin-top:18px;">
+            <div class="hr-header" aria-hidden="true">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:36px; height:36px; border-radius:8px; background:linear-gradient(135deg,#1e40af,#0891b2); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);">📝</div>
+                <div>
+                  <div class="hr-title">Advisor Responses</div>
+                  <div class="hr-sub">${responses.length} ${responses.length === 1 ? 'response' : 'responses'}</div>
+                </div>
+              </div>
+            </div>
+            <div class="hr-list" role="list" aria-label="Advisor responses list">
+              ${responses.map(r => {
+                const contactDate = new Date(r.contactDate || r.contactDateString || Date.now());
+                const formattedContactDate = isNaN(contactDate.getTime()) ? '' :
+                  contactDate.toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+                const statusMap = {
+                  'Pending': { cls: 'status-pending', text: 'Pending', icon: '⏳' },
+                  'In Progress': { cls: 'status-progress', text: 'In Progress', icon: '🔄' },
+                  'Resolved': { cls: 'status-resolved', text: 'Resolved', icon: '✅' },
+                  'Follow-up Required': { cls: 'status-follow', text: 'Follow-up Required', icon: '🔔' }
+                };
+                const s = statusMap[r.status] || { cls: 'status-default', text: r.status || 'Unknown', icon: '📌' };
+                const methodIcons = { 'Email':'📧', 'Phone':'📞', 'In-Person':'👤', 'Video Call':'💻' };
+                const methodIcon = methodIcons[r.contactMethod] || '📋';
+                
+                // Ensure onclick-safe values
+                const safeId = escapeJs(r._id || '');
+                const safeContactMethod = escapeJs(r.contactMethod || '');
+                const safeContactDate = escapeJs(r.contactDate || '');
+                const safeNotes = escapeJs(r.responseNotes || '');
+                
+                return `
+                  <div class="hr-item" role="listitem" tabindex="0" aria-label="Response from ${escapeHtml(r.advisorName || 'Advisor')}">
+                    <div class="hr-row">
+                      <div class="hr-left">
+                        <div class="hr-avatar" aria-hidden="true">${escapeHtml((r.advisorName||'').charAt(0).toUpperCase() || 'A')}</div>
+                        <div class="hr-meta">
+                          <div class="hr-name">${methodIcon} ${escapeHtml(r.contactMethod || 'Contact')}</div>
+                          <div class="hr-meta-sub muted">
+                            <span>${escapeHtml(r.advisorName || 'Advisor')}</span>
+                            <span aria-hidden="true">•</span>
+                            <span>${escapeHtml(formattedContactDate)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="hr-actions">
+                        <span class="hr-status ${s.cls}" role="status" aria-live="polite">${s.icon} ${escapeHtml(s.text)}</span>
+                        <button class="hr-edit-btn" title="Edit response" onclick="editResponse('${safeId}', '${escapeJs(student.timestamp||'')}', '${escapeJs(student.studentEmail||'')}', '${escapeJs(student.studentName||'')}', '${escapeJs(student.phone||'')}', '${safeContactMethod}', '${safeContactDate}', '${safeNotes}', '${escapeJs(r.status||'')}')">
+                          <span class="icon">✏️</span><span>Edit</span>
+                        </button>
+                      </div>
+                    </div>
+                    ${r.responseNotes ? `<div class="hr-notes" aria-label="Response notes">${escapeHtml(r.responseNotes)}</div>` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // Build main card for student + actions
+      const studentName = escapeHtml(student.studentName || '');
+      const studentEmail = escapeHtml(student.studentEmail || '');
+      const phone = escapeHtml(student.phone || '');
+      const category = escapeHtml(student.category || '');
+      const advisor = student.advisor && student.advisor !== 'Not assigned' ? escapeHtml(student.advisor) : '';
+      const message = student.message ? escapeHtml(student.message) : '';
+      const otherDetails = student.otherDetails ? escapeHtml(student.otherDetails) : '';
+      const timestamp = student.timestamp || Date.now();
+      const formattedDate = new Date(timestamp).toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+
+      // Return the composed HTML
+      return `
+        <div class="hr-card" role="article" aria-labelledby="hr-${escapeJs(String(timestamp))}">
+          <div class="hr-row" style="margin-bottom:8px;">
+            <div class="hr-left">
+              <div class="hr-avatar">${escapeHtml((studentName||'').charAt(0).toUpperCase() || 'S')}</div>
+              <div class="hr-meta" style="min-width:0;">
+                <div id="hr-${escapeJs(String(timestamp))}" class="hr-name">${studentName}</div>
+                <div class="hr-meta-sub muted"><span class="icon">🕐</span><span>${formattedDate}</span></div>
+              </div>
+            </div>
+            <div class="hr-actions">
+              ${ category ? `<span class="hr-mini-value" style="padding:8px 12px; border-radius:10px; background: linear-gradient(135deg,#dbeafe,#bfdbfe); color:#1e40af; font-weight:700;">${category}</span>` : '' }
+              ${ advisor ? `<span class="hr-mini-value" style="padding:8px 12px; border-radius:10px; background: linear-gradient(135deg,#fff7ed,#fde68a); color:#92400e; font-weight:700;">👤 ${advisor}</span>` : '' }
+              <button class="hr-cta" onclick="openResponseModal('${escapeJs(timestamp)}', '${escapeJs(studentEmail)}', '${escapeJs(studentName)}', '${escapeJs(phone)}')">
+                <span class="icon">➕</span><span>Add Response</span>
+              </button>
+            </div>
+          </div>
+          <div class="hr-grid" aria-hidden="false">
+            <div class="hr-card-mini" role="group" aria-label="Email">
+              <div class="hr-mini-title">📧 Email</div>
+              <div class="hr-mini-value"><a href="mailto:${studentEmail}" style="color:var(--hr-accent); text-decoration:none;">${studentEmail} ↗</a></div>
+            </div>
+            <div class="hr-card-mini" role="group" aria-label="Phone">
+              <div class="hr-mini-title">📞 Phone</div>
+              <div class="hr-mini-value">${phone || '—'}</div>
+            </div>
+            ${ advisor ? `<div class="hr-card-mini" role="group" aria-label="Assigned advisor"><div class="hr-mini-title">👤 Assigned Advisor</div><div class="hr-mini-value">${advisor}</div></div>` : '' }
+          </div>
+          ${ message ? `<div class="hr-card-mini" style="margin-top:12px;"><div class="hr-mini-title">💬 Message</div><div class="hr-notes">${message}</div></div>` : '' }
+          ${ otherDetails ? `<div class="hr-card-mini" style="margin-top:12px;"><div class="hr-mini-title">📋 Additional Details</div><div class="hr-notes">${otherDetails}</div></div>` : '' }
+          ${ savedResponsesHtml }
+        </div>
+      `;
     }
 
     async function loadStudents() {
@@ -3066,11 +3774,17 @@
         }
       }
       
-      // If no search term, apply filters to currently displayed students or reload 5
+      // If no search term, apply filters to all students (not just 5)
       if (!searchTerm) {
-        // Reload 5 students and apply filters
+        // If filters are applied, load ALL students to filter properly
+        // Otherwise, just load 5 for initial display
+        const shouldLoadAll = riskFilter || majorFilter;
+        const url = shouldLoadAll 
+          ? `${API_BASE_URL}/api/data/csv-students` 
+          : `${API_BASE_URL}/api/data/csv-students?limit=5`;
+        
         try {
-          const response = await fetch(`${API_BASE_URL}/api/data/csv-students?limit=5`);
+          const response = await fetch(url);
           if (response.ok) {
             const students = await response.json();
             let filtered = students.map(s => ({
@@ -3113,11 +3827,28 @@
               filtered = filtered.filter(s => (s.major || '') === majorFilter);
             }
             
+            // Show message if no results
+            if (filtered.length === 0) {
+              if (listContainer) {
+                listContainer.innerHTML = `
+                  <div class="list-item" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">🔍</div>
+                    <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">No students found</div>
+                    <div style="font-size: 14px;">No students match the selected filters. Try adjusting your filter criteria.</div>
+                  </div>
+                `;
+              }
+              return;
+            }
+            
             updateStatusStudentList(filtered);
             return;
           }
         } catch (error) {
           console.error('❌ Error loading students:', error);
+          if (listContainer) {
+            listContainer.innerHTML = `<div class="list-item" style="text-align: center; color: #dc2626; padding: 20px;">Error loading students: ${error.message}</div>`;
+          }
         }
       }
       
@@ -3284,54 +4015,6 @@
       }
     }
 
-    function openAddStudentToStatusModal() {
-      document.getElementById('add-student-status-modal').classList.add('active');
-      loadAvailableStudentsForAdd();
-    }
-
-    async function loadAvailableStudentsForAdd() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/data/csv-students`);
-        if (response.ok) {
-          const students = await response.json();
-          const select = document.getElementById('add-student-select');
-          if (select) {
-            select.innerHTML = '<option value="">Select a student...</option>';
-            students.forEach(student => {
-              const studentId = student.studentId || student.student_id;
-              const option = document.createElement('option');
-              option.value = studentId;
-              option.textContent = `${student.firstName || student.first_name} ${student.lastName || student.last_name} (ID: ${studentId})`;
-              select.appendChild(option);
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error loading students for add:', error);
-      }
-    }
-
-    function addStudentToStatus() {
-      const select = document.getElementById('add-student-select');
-      const studentId = select?.value;
-      
-      if (!studentId) {
-        alert('Please select a student');
-        return;
-      }
-
-      // Set initial status to 'pending'
-      setStudentStatus(studentId, 'pending');
-      
-      // Reload the Students Status  list
-      loadStatusStudents();
-      
-      // Close modal
-      document.getElementById('add-student-status-modal').classList.remove('active');
-      select.value = '';
-      
-      alert('Student added to status list!');
-    }
   </script>
 </head>
 <body>
@@ -3385,9 +4068,6 @@
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2><span class="card-icon">👥</span>Students Status</h2>
-          <div style="display: flex; gap: 10px;">
-            <button class="btn primary" onclick="openAddStudentToStatusModal()">Add Student</button>
-          </div>
         </div>
         
         <!-- Filters Section -->
@@ -3442,38 +4122,53 @@
           </div>
         </div>
         
-        <!-- Student Search Bar -->
-        <div style="margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; position: relative;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-weight: 600; color: #374151; font-size: 14px;">🔍 Search Students:</span>
-            <span style="font-size: 12px; color: #6b7280;">Find students by name, ID, or email</span>
+        <!-- Student Search Bar - Midnight Glass Theme -->
+        <div class="card" style="margin-bottom: var(--space-lg); padding: var(--space-lg);">
+          <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md);">
+            <span style="font-weight: 600; color: var(--text-secondary); font-size: 0.875rem;">🔍 Search Students:</span>
+            <span class="text-muted" style="font-size: 0.75rem;">Find students by name, ID, or email</span>
           </div>
-          <div style="display: flex; gap: 8px; align-items: flex-start;">
-            <div style="position: relative; flex: 1;">
+          <div style="display: flex; gap: var(--space-sm); align-items: flex-start;">
+            <div class="search-container">
               <input 
-                type="text" 
+                type="search" 
                 id="student-search-input" 
+                class="search-input"
                 placeholder="Type to search students (name, ID, or email)..." 
-                style="width: 100%; padding: 12px 40px 12px 14px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white;"
-              oninput="handleStudentSearch(this.value);"
-              onkeydown="if(event.key === 'Enter') { handleStudentSearch(this.value, true); }"
-              onfocus="if(this.value.trim().length > 0) handleStudentSearch(this.value, true);"
+                aria-label="Search students"
+                aria-autocomplete="list"
+                aria-controls="student-search-results"
+                aria-expanded="false"
+                oninput="handleStudentSearch(this.value);"
+                onkeydown="handleSearchKeyDown(event);"
+                onfocus="if(this.value.trim().length > 0) handleStudentSearch(this.value, true);"
               />
-              <button 
-                onclick="document.getElementById('student-search-input').value = ''; document.getElementById('student-search-results').style.display = 'none'; loadGoogleFormResponses();" 
-                style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: #6b7280; padding: 4px;"
-                title="Clear search"
-              >✕</button>
-              <div id="student-search-results" style="display: none; position: absolute; z-index: 1000; background: white; border: 2px solid #e5e7eb; border-radius: 8px; margin-top: 4px; max-height: 300px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; top: 100%; left: 0;"></div>
+              <div class="search-actions">
+                <button 
+                  type="button"
+                  onclick="clearStudentSearch();" 
+                  class="btn secondary"
+                  style="padding: var(--space-xs); min-width: auto;"
+                  aria-label="Clear search"
+                  title="Clear search"
+                >✕</button>
+                <button 
+                  type="button"
+                  onclick="performStudentSearch();" 
+                  class="btn primary"
+                  style="padding: var(--space-xs) var(--space-md); min-width: auto;"
+                  aria-label="Search students"
+                  title="Search students"
+                >🔍</button>
+              </div>
+              <div 
+                id="student-search-results" 
+                class="search-results"
+                role="listbox"
+                aria-label="Search results"
+                aria-expanded="false"
+              ></div>
             </div>
-            <button 
-              onclick="const searchVal = document.getElementById('student-search-input').value; if(searchVal.trim()) { handleStudentSearch(searchVal.trim(), true); } else { document.getElementById('student-search-results').style.display = 'none'; }" 
-              class="btn primary"
-              style="padding: 12px 20px; white-space: nowrap; height: fit-content;"
-              title="Search students"
-            >
-              🔍 Search
-            </button>
           </div>
         </div>
         
@@ -3483,39 +4178,70 @@
       </div>
     </div>
 
-    <!-- Student Details Modal -->
-    <div id="student-details-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center;">
-      <div style="background: white; border-radius: 12px; padding: 24px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px;">
-          <h3 style="margin: 0; font-size: 22px; font-weight: 600; color: #1f2937;">👤 Student Details</h3>
-          <button onclick="closeStudentDetailsModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">×</button>
+    <!-- Student Details Modal - Light Glass Theme -->
+    <div 
+      id="student-details-modal" 
+      class="modal-backdrop" 
+      style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="student-modal-title"
+      aria-describedby="student-details-content"
+      onclick="if(event.target === this) closeStudentDetailsModal();"
+    >
+      <div class="modal" onclick="event.stopPropagation();" style="position: relative; z-index: 10001; background: #ffffff; width: 100%; max-width: 760px; border-radius: 16px; padding: 24px; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.1); max-height: 90vh; overflow-y: auto; transform: translateY(20px) scale(0.98); opacity: 0; transition: all 220ms cubic-bezier(0.2, 0.9, 0.3, 1);">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(0, 0, 0, 0.08);">
+          <h3 id="student-modal-title" class="modal-title" style="font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;">👤 Student Details</h3>
+          <button 
+            class="modal-close"
+            onclick="closeStudentDetailsModal()" 
+            aria-label="Close student details modal"
+            style="background: none; border: none; color: #64748b; font-size: 1.5rem; cursor: pointer; padding: 4px; border-radius: 8px; transition: all 120ms; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"
+            onmouseover="this.style.background='#f1f5f9'; this.style.color='#1e293b'"
+            onmouseout="this.style.background='none'; this.style.color='#64748b'"
+          >×</button>
         </div>
-        <div id="student-details-content">
-          <div style="text-align: center; padding: 40px; color: #6b7280;">
-            <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
-            <div style="margin-top: 12px;">Loading student details...</div>
+        <div id="student-details-content" style="min-height: 200px; position: relative; color: #1e293b;">
+          <div class="loading" style="display: flex; gap: 12px; align-items: center; justify-content: center; padding: 40px; color: #64748b;">
+            <div class="loader" style="width: 36px; height: 36px; border-radius: 50%; border: 4px solid rgba(0, 0, 0, 0.08); border-top-color: #2563eb; animation: spin 1s linear infinite;"></div>
+            <div>Loading student details...</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Add/Edit Response Modal -->
-    <div id="response-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
-      <div style="background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h3 style="margin: 0; font-size: 20px; font-weight: 600;" id="response-modal-title">Add Response</h3>
-          <button onclick="closeResponseModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">×</button>
+    <!-- Add/Edit Response Modal - Midnight Glass Theme -->
+    <div 
+      id="response-modal" 
+      class="modal-backdrop" 
+      style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="response-modal-title"
+      onclick="if(event.target === this) closeResponseModal();"
+    >
+      <div class="modal" onclick="event.stopPropagation();" style="position: relative; z-index: 10001; background: #ffffff !important; width: 100%; max-width: 600px; border-radius: 16px; padding: 24px; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.1); max-height: 90vh; overflow-y: auto; transform: translateY(20px) scale(0.98); opacity: 0; transition: all 220ms cubic-bezier(0.2, 0.9, 0.3, 1); visibility: visible; display: block;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(0, 0, 0, 0.08);">
+          <h3 id="response-modal-title" class="modal-title" style="font-size: 1.25rem; font-weight: 700; color: #1e293b; margin: 0;">Add Response</h3>
+          <button 
+            class="modal-close"
+            onclick="closeResponseModal()" 
+            aria-label="Close response modal"
+            style="background: none; border: none; color: #64748b; font-size: 1.5rem; cursor: pointer; padding: 4px; border-radius: 8px; transition: all 120ms; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"
+            onmouseover="this.style.background='#f1f5f9'; this.style.color='#1e293b'"
+            onmouseout="this.style.background='none'; this.style.color='#64748b'"
+          >×</button>
         </div>
-        <form id="response-form" onsubmit="saveResponse(event)" style="display: grid; gap: 16px;">
+        <form id="response-form" onsubmit="saveResponse(event)" style="display: grid !important; gap: 20px; color: #1e293b !important; visibility: visible !important; opacity: 1 !important;">
           <input type="hidden" id="response-id" />
           <input type="hidden" id="response-timestamp" />
           <input type="hidden" id="response-student-email" />
           <input type="hidden" id="response-student-name" />
           <input type="hidden" id="response-student-phone" />
           
-          <div>
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Contact Method *</label>
-            <select id="response-contact-method" required style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px;">
+          <div style="visibility: visible !important; opacity: 1 !important; display: block !important;">
+            <label for="response-contact-method" style="display: block !important; font-size: 14px; font-weight: 600; color: #374151 !important; margin-bottom: 8px; visibility: visible !important; opacity: 1 !important;">Contact Method *</label>
+            <select id="response-contact-method" required style="width: 100% !important; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; background: #ffffff !important; font-size: 14px; color: #1e293b !important; transition: border-color 0.3s ease; visibility: visible !important; opacity: 1 !important; display: block !important;">
               <option value="">Select contact method...</option>
               <option value="Email">📧 Email</option>
               <option value="Phone">📞 Phone</option>
@@ -3525,14 +4251,14 @@
             </select>
           </div>
           
-          <div>
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Contact Date *</label>
-            <input type="datetime-local" id="response-contact-date" required style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px;" />
+          <div style="visibility: visible !important; opacity: 1 !important; display: block !important;">
+            <label for="response-contact-date" style="display: block !important; font-size: 14px; font-weight: 600; color: #374151 !important; margin-bottom: 8px; visibility: visible !important; opacity: 1 !important;">Contact Date *</label>
+            <input type="datetime-local" id="response-contact-date" required style="width: 100% !important; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; background: #ffffff !important; font-size: 14px; color: #1e293b !important; transition: border-color 0.3s ease; visibility: visible !important; opacity: 1 !important; display: block !important;" />
           </div>
           
-          <div>
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Status</label>
-            <select id="response-status" style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px;">
+          <div style="visibility: visible !important; opacity: 1 !important; display: block !important;">
+            <label for="response-status" style="display: block !important; font-size: 14px; font-weight: 600; color: #374151 !important; margin-bottom: 8px; visibility: visible !important; opacity: 1 !important;">Status</label>
+            <select id="response-status" style="width: 100% !important; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; background: #ffffff !important; font-size: 14px; color: #1e293b !important; transition: border-color 0.3s ease; visibility: visible !important; opacity: 1 !important; display: block !important;">
               <option value="Pending">⏳ Pending</option>
               <option value="In Progress">🔄 In Progress</option>
               <option value="Resolved">✅ Resolved</option>
@@ -3540,14 +4266,19 @@
             </select>
           </div>
           
-          <div>
-            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Response Notes</label>
-            <textarea id="response-notes" rows="5" placeholder="Enter details about the response, conversation, or follow-up actions..." style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
+          <div style="visibility: visible !important; opacity: 1 !important; display: block !important;">
+            <label for="response-notes" style="display: block !important; font-size: 14px; font-weight: 600; color: #374151 !important; margin-bottom: 8px; visibility: visible !important; opacity: 1 !important;">Response Notes</label>
+            <textarea 
+              id="response-notes" 
+              rows="5" 
+              placeholder="Enter details about the response, conversation, or follow-up actions..."
+              style="width: 100% !important; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 12px; background: #ffffff !important; font-size: 14px; color: #1e293b !important; transition: border-color 0.3s ease; resize: vertical; min-height: 100px; font-family: inherit; visibility: visible !important; opacity: 1 !important; display: block !important;"
+            ></textarea>
           </div>
           
-          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
-            <button type="button" onclick="closeResponseModal()" class="btn secondary" style="padding: 10px 20px;">Cancel</button>
-            <button type="submit" class="btn primary" style="padding: 10px 20px;">Save Response</button>
+          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+            <button type="button" onclick="closeResponseModal()" class="btn secondary" style="padding: 12px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; background: transparent; border: 1px solid #e5e7eb; color: #64748b; transition: all 0.3s ease; font-size: 14px;">Cancel</button>
+            <button type="submit" class="btn primary" style="padding: 12px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); transition: all 0.3s ease; font-size: 14px;">Save Response</button>
           </div>
         </form>
       </div>
@@ -3559,7 +4290,6 @@
           <h2><span class="card-icon">📊</span>Retention Rates</h2>
           <p style="color: #6b7280; font-size: 13px; margin-bottom: 12px;">Overall student retention percentage showing retained vs. not retained students.</p>
           <div style="height:280px; position: relative;"><canvas id="retentionChart"></canvas></div>
-          <div style="margin-top:12px"><button class="btn primary" onclick="openReportModal()">Generate Report</button></div>
         </div>
         <div class="card">
           <h2><span class="card-icon">📈</span>GPA Distribution</h2>
@@ -4080,27 +4810,6 @@
     </div>
   </div>
 
-  <!-- Add Student to Status Modal -->
-  <div id="add-student-status-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Add Student to Status List</h2>
-        <button class="modal-close">&times;</button>
-      </div>
-      <div class="form">
-        <div>
-          <label>Select Student:</label>
-          <select id="add-student-select" style="width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 12px;">
-            <option value="">Loading students...</option>
-          </select>
-        </div>
-        <div class="actions">
-          <button class="btn secondary" onclick="document.getElementById('add-student-status-modal').classList.remove('active')">Cancel</button>
-          <button class="btn primary" onclick="addStudentToStatus()">Add Student</button>
-        </div>
-      </div>
-    </div>
-  </div>
 
 </body>
 </html>
