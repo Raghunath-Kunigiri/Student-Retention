@@ -87,6 +87,10 @@
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.2); }
     }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
     .signout { 
       color: #6b7280; 
       text-decoration: none; 
@@ -694,10 +698,25 @@
       try {
         responsesList.innerHTML = '<div class="loading">Loading help request responses...</div>';
         
-        // Fetch all responses (don't filter by advisor name)
-        const url = advisorName 
-          ? `${API_BASE_URL}/api/google-forms/responses?advisorName=${encodeURIComponent(advisorName)}`
-          : `${API_BASE_URL}/api/google-forms/responses`;
+        // Get advisor ID from localStorage to filter responses
+        const currentAdvisorId = localStorage.getItem('advisorId');
+        
+        // Build URL with advisorId for filtering
+        let url = `${API_BASE_URL}/api/google-forms/responses`;
+        const params = new URLSearchParams();
+        
+        if (currentAdvisorId) {
+          params.append('advisorId', currentAdvisorId);
+        }
+        if (advisorName) {
+          params.append('advisorName', advisorName);
+        }
+        
+        if (params.toString()) {
+          url += '?' + params.toString();
+        }
+        
+        console.log(`📋 Loading responses for advisor ID: ${currentAdvisorId || 'all'}`);
         
         const response = await fetch(url);
         
@@ -718,8 +737,47 @@
         const responses = data.responses || [];
 
         if (responses.length === 0) {
-          responsesList.innerHTML = '<div class="list-item" style="text-align: center; color: #6b7280; padding: 20px;">No help request responses found.</div>';
+          const advisorNameForMessage = window.currentAdvisorName || 'your advisor account';
+          responsesList.innerHTML = `
+            <div class="list-item" style="text-align: center; color: #6b7280; padding: 40px 20px;">
+              <div style="font-size: 48px; margin-bottom: 12px;">📭</div>
+              <div style="font-weight: 600; font-size: 16px; margin-bottom: 8px; color: #374151;">No help request responses found</div>
+              <div style="font-size: 14px; color: #6b7280;">
+                ${currentAdvisorId ? `No help requests are currently assigned to ${advisorNameForMessage}.` : 'No help request responses available.'}
+              </div>
+            </div>
+          `;
           return;
+        }
+
+        // Load saved advisor responses for each help request
+        const helpRequestResponses = {};
+        try {
+          const savedResponsesPromises = responses.map(async (resp) => {
+            const timestamp = resp['Timestamp'] || resp['timestamp'] || '';
+            const studentEmail = resp['Email'] || resp['Email address'] || resp['email'] || '';
+            if (timestamp && studentEmail) {
+              try {
+                const savedResponses = await fetch(`${API_BASE_URL}/api/help-request-responses/request/${encodeURIComponent(timestamp)}/${encodeURIComponent(studentEmail.toLowerCase())}`);
+                if (savedResponses.ok) {
+                  const data = await savedResponses.json();
+                  return { key: `${timestamp}_${studentEmail.toLowerCase()}`, responses: data.responses || [] };
+                }
+              } catch (e) {
+                console.error('Error loading saved responses:', e);
+              }
+            }
+            return null;
+          });
+          
+          const savedResponsesResults = await Promise.all(savedResponsesPromises);
+          savedResponsesResults.forEach(result => {
+            if (result) {
+              helpRequestResponses[result.key] = result.responses;
+            }
+          });
+        } catch (e) {
+          console.error('Error loading saved responses:', e);
         }
 
         // Display responses with advisor information
@@ -732,6 +790,8 @@
           const message = resp['Message'] || resp['message'] || '';
           const otherDetails = resp['If Other please mention here'] || resp['Other'] || '';
           const advisor = resp['Advisor'] || resp['advisor'] || 'Not assigned';
+          
+          const savedResponses = helpRequestResponses[`${timestamp}_${studentEmail.toLowerCase()}`] || [];
           
           // Format timestamp
           let formattedDate = timestamp;
@@ -750,6 +810,51 @@
             }
           }
 
+          // Format saved responses
+          let savedResponsesHtml = '';
+          if (savedResponses.length > 0) {
+            savedResponsesHtml = `
+              <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <strong style="color: #374151; font-size: 14px;">📝 Advisor Responses (${savedResponses.length})</strong>
+                </div>
+                ${savedResponses.map(savedResp => {
+                  const contactDate = new Date(savedResp.contactDate);
+                  const formattedContactDate = contactDate.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+                  const statusColors = {
+                    'Pending': '#fef3c7',
+                    'In Progress': '#dbeafe',
+                    'Resolved': '#d1fae5',
+                    'Follow-up Required': '#fee2e2'
+                  };
+                  return `
+                    <div style="margin-bottom: 12px; padding: 12px; background: #f9fafb; border-radius: 8px; border-left: 4px solid ${statusColors[savedResp.status] || '#e5e7eb'};">
+                      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div style="flex: 1;">
+                          <div style="font-weight: 600; color: #1f2937; font-size: 13px;">${escapeHtml(savedResp.contactMethod)} - ${escapeHtml(savedResp.advisorName)}</div>
+                          <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">${formattedContactDate}</div>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                          <span style="padding: 2px 8px; background: ${statusColors[savedResp.status] || '#e5e7eb'}; border-radius: 4px; font-size: 11px; color: #374151;">${escapeHtml(savedResp.status)}</span>
+                          <button onclick="editResponse('${savedResp._id}', '${escapeJs(timestamp)}', '${escapeJs(studentEmail)}', '${escapeJs(studentName)}', '${escapeJs(phone)}', '${escapeJs(savedResp.contactMethod)}', '${escapeJs(savedResp.contactDate)}', '${escapeJs(savedResp.responseNotes || '')}', '${escapeJs(savedResp.status)}')" style="background: none; border: none; cursor: pointer; color: #3b82f6; font-size: 12px; padding: 2px 6px;" title="Edit response">✏️</button>
+                        </div>
+                      </div>
+                      ${savedResp.responseNotes ? `
+                        <div style="margin-top: 6px; font-size: 12px; color: #1f2937; white-space: pre-wrap;">${escapeHtml(savedResp.responseNotes)}</div>
+                      ` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }
+
           return `
             <div class="list-item" style="border: 2px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 16px; background: #fff;">
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
@@ -760,13 +865,14 @@
                 <div style="display: flex; gap: 8px; align-items: center;">
                   <span class="chip info" style="background: #dbeafe; color: #1e40af;">${escapeHtml(category)}</span>
                   ${advisor && advisor !== 'Not assigned' ? `<span class="chip" style="background: #fef3c7; color: #92400e; font-size: 11px;">👤 ${escapeHtml(advisor)}</span>` : ''}
+                  <button onclick="openResponseModal('${escapeJs(timestamp)}', '${escapeJs(studentEmail)}', '${escapeJs(studentName)}', '${escapeJs(phone)}')" class="btn secondary" style="padding: 6px 12px; font-size: 12px; white-space: nowrap;">+ Add Response</button>
                 </div>
               </div>
               
               <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
                 <div style="margin-bottom: 8px;">
                   <strong style="color: #374151; font-size: 13px;">Email:</strong>
-                  <span style="color: #6b7280; font-size: 13px; margin-left: 8px;">${escapeHtml(studentEmail)}</span>
+                  <a href="mailto:${escapeHtml(studentEmail)}" style="color: #3b82f6; font-size: 13px; margin-left: 8px; text-decoration: none; cursor: pointer;" title="Click to send email">${escapeHtml(studentEmail)} ✉️</a>
                 </div>
                 <div style="margin-bottom: 8px;">
                   <strong style="color: #374151; font-size: 13px;">Phone:</strong>
@@ -790,6 +896,7 @@
                   <div style="color: #1f2937; font-size: 13px; margin-top: 4px; padding: 8px; background: #f9fafb; border-radius: 6px; white-space: pre-wrap;">${escapeHtml(otherDetails)}</div>
                 </div>
                 ` : ''}
+                ${savedResponsesHtml}
               </div>
             </div>
           `;
@@ -798,7 +905,9 @@
         // Add summary at the top
         const summary = document.createElement('div');
         summary.style.cssText = 'margin-bottom: 16px; padding: 12px; background: #f3f4f6; border-radius: 8px; font-size: 13px; color: #374151;';
-        summary.innerHTML = `<strong>Total Responses:</strong> ${data.total || responses.length}${data.totalAll && data.totalAll !== data.total ? ` (${data.totalAll} total in sheet)` : ''}`;
+        const advisorNameForSummary = window.currentAdvisorName || '';
+        const filterNote = data.filtered ? ` (filtered for ${advisorNameForSummary || `advisor ID ${currentAdvisorId}`})` : '';
+        summary.innerHTML = `<strong>Total Responses:</strong> ${data.total || responses.length}${filterNote}${data.totalAll && data.totalAll !== data.total ? ` (${data.totalAll} total in sheet)` : ''}`;
         responsesList.insertBefore(summary, responsesList.firstChild);
 
       } catch (error) {
@@ -812,6 +921,445 @@
         `;
       }
     }
+
+    // Student search functionality - Real-time search from CSV data
+    let searchTimeout = null;
+    let currentSearchRequest = null;
+    
+    async function handleStudentSearch(searchTerm, immediate = false) {
+      // Cancel previous timeout and request
+      clearTimeout(searchTimeout);
+      if (currentSearchRequest && currentSearchRequest.abort) {
+        currentSearchRequest.abort();
+      }
+      
+      const searchResults = document.getElementById('student-search-results');
+      const searchInput = document.getElementById('student-search-input');
+      
+      if (!searchTerm || searchTerm.trim().length < 1) {
+        searchResults.style.display = 'none';
+        searchResults.innerHTML = '';
+        return;
+      }
+
+      // Show loading indicator
+      searchResults.innerHTML = '<div style="padding: 12px; color: #6b7280; text-align: center;"><div style="display: inline-block; width: 16px; height: 16px; border: 2px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite;"></div> Searching...</div>';
+      searchResults.style.display = 'block';
+
+      const performSearch = async () => {
+        try {
+          // Create AbortController for this request
+          const controller = new AbortController();
+          currentSearchRequest = controller;
+          
+          const response = await fetch(`${API_BASE_URL}/api/help-request-responses/search/students?q=${encodeURIComponent(searchTerm)}`, {
+            signal: controller.signal
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            const students = data.students || [];
+            
+            // Check if this is still the current search (user might have typed more)
+            if (searchInput.value.trim() !== searchTerm.trim()) {
+              return; // Ignore this result, user has continued typing
+            }
+            
+            if (students.length === 0) {
+              searchResults.innerHTML = '<div style="padding: 12px; color: #6b7280; text-align: center;">No students found. Try searching by name, ID, or email.</div>';
+              searchResults.style.display = 'block';
+              return;
+            }
+
+            searchResults.innerHTML = students.map(student => `
+              <div 
+                onclick="selectStudentFromSearch(${student.studentId}, '${escapeJs(student.email)}', '${escapeJs(student.firstName + ' ' + student.lastName)}'); document.getElementById('student-search-results').style.display = 'none';" 
+                style="padding: 12px; cursor: pointer; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;"
+                onmouseover="this.style.background='#f3f4f6'"
+                onmouseout="this.style.background='white'"
+              >
+                <div style="flex: 1;">
+                  <div style="font-weight: 500; color: #1f2937; font-size: 14px;">${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</div>
+                  <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">ID: ${student.studentId} | ${escapeHtml(student.email)}</div>
+                  ${student.phone && student.phone !== 'Not provided' ? `<div style="font-size: 11px; color: #9ca3af; margin-top: 2px;">📞 ${escapeHtml(student.phone)}</div>` : ''}
+                </div>
+                <div style="color: #3b82f6; font-size: 14px; margin-left: 8px;">→</div>
+              </div>
+            `).join('');
+            searchResults.style.display = 'block';
+          }
+        } catch (error) {
+          // Ignore aborted requests
+          if (error.name === 'AbortError') {
+            return;
+          }
+          console.error('Error searching students:', error);
+          searchResults.innerHTML = '<div style="padding: 12px; color: #dc2626; text-align: center;">Error searching students. Please try again.</div>';
+          searchResults.style.display = 'block';
+        } finally {
+          currentSearchRequest = null;
+        }
+      };
+
+      // Use shorter debounce for real-time feel, or immediate for button click
+      if (immediate) {
+        performSearch();
+      } else {
+        searchTimeout = setTimeout(performSearch, 150); // Reduced from 300ms to 150ms for faster response
+      }
+    }
+
+    async function selectStudentFromSearch(studentId, email, name) {
+      // Close search results
+      const searchResults = document.getElementById('student-search-results');
+      searchResults.style.display = 'none';
+      
+      // Show student details modal
+      await showStudentDetailsModal(studentId, email);
+    }
+
+    async function showStudentDetailsModal(studentId, email) {
+      const modal = document.getElementById('student-details-modal');
+      const content = document.getElementById('student-details-content');
+      
+      // Show modal with loading state
+      modal.style.display = 'flex';
+      content.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #6b7280;">
+          <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <div style="margin-top: 12px;">Loading student details...</div>
+        </div>
+      `;
+      
+      try {
+        // Fetch full student details
+        const response = await fetch(`${API_BASE_URL}/api/help-request-responses/student-details?studentId=${studentId}&email=${encodeURIComponent(email)}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to load student details');
+        }
+        
+        const data = await response.json();
+        const student = data.student;
+        
+        if (!student) {
+          throw new Error('Student not found');
+        }
+        
+        // Format birth date
+        let birthDateFormatted = student.birthDate || 'Not provided';
+        if (student.birthDate && student.birthDate !== 'Not provided') {
+          try {
+            const date = new Date(student.birthDate);
+            birthDateFormatted = date.toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            });
+          } catch (e) {
+            // Keep original format if parsing fails
+          }
+        }
+        
+        // Determine risk level based on GPA
+        const gpa = student.academic?.gpa || 0;
+        let riskLevel = 'Low';
+        let riskColor = '#10b981'; // green
+        if (gpa < 2.0) {
+          riskLevel = 'High';
+          riskColor = '#dc2626'; // red
+        } else if (gpa < 2.5) {
+          riskLevel = 'Medium';
+          riskColor = '#f59e0b'; // yellow
+        }
+        
+        // Display student details
+        content.innerHTML = `
+          <div style="display: grid; gap: 20px;">
+            <!-- Header Section -->
+            <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 8px;">
+              <div style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">${escapeHtml(student.firstName)} ${escapeHtml(student.lastName)}</div>
+              <div style="font-size: 14px; opacity: 0.9;">Student ID: ${student.studentId}</div>
+            </div>
+            
+            <!-- Contact Information -->
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #f9fafb;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">📧 Contact Information</div>
+              <div style="display: grid; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-weight: 500; color: #6b7280; min-width: 80px;">Email:</span>
+                  <a href="mailto:${escapeHtml(student.email)}" style="color: #3b82f6; text-decoration: none; font-weight: 500;" onclick="event.stopPropagation(); window.location.href='mailto:${escapeHtml(student.email)}'; return false;">${escapeHtml(student.email)} ✉️</a>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <span style="font-weight: 500; color: #6b7280; min-width: 80px;">Phone:</span>
+                  <span style="color: #1f2937;">${escapeHtml(student.phone)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Academic Information -->
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">🎓 Academic Information</div>
+              <div style="display: grid; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 500; color: #6b7280;">Major:</span>
+                  <span style="color: #1f2937; font-weight: 600;">${escapeHtml(student.major)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 500; color: #6b7280;">Year:</span>
+                  <span style="color: #1f2937; font-weight: 600;">${escapeHtml(student.year)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 500; color: #6b7280;">Enrollment Status:</span>
+                  <span style="color: #1f2937; font-weight: 600;">${escapeHtml(student.enrollmentStatus)}</span>
+                </div>
+                ${student.academic ? `
+                <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 500; color: #6b7280;">GPA:</span>
+                    <span style="color: #1f2937; font-weight: 700; font-size: 18px;">${student.academic.gpa.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-weight: 500; color: #6b7280;">Credits Earned:</span>
+                    <span style="color: #1f2937; font-weight: 600;">${student.academic.creditsEarned}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; color: #6b7280;">Absences:</span>
+                    <span style="color: #1f2937; font-weight: 600;">${student.academic.attendanceAbsences}</span>
+                  </div>
+                  <div style="margin-top: 12px; padding: 8px 12px; background: ${riskColor}15; border-radius: 6px; border-left: 4px solid ${riskColor};">
+                    <span style="font-weight: 500; color: ${riskColor};">Risk Level: ${riskLevel}</span>
+                  </div>
+                </div>
+                ` : '<div style="color: #6b7280; font-style: italic; margin-top: 8px;">No academic records available</div>'}
+              </div>
+            </div>
+            
+            <!-- Additional Information -->
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #f9fafb;">
+              <div style="font-weight: 600; color: #374151; margin-bottom: 12px; font-size: 16px;">ℹ️ Additional Information</div>
+              <div style="display: grid; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 500; color: #6b7280;">Date of Birth:</span>
+                  <span style="color: #1f2937;">${escapeHtml(birthDateFormatted)}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-weight: 500; color: #6b7280;">Dropout Status:</span>
+                  <span style="color: #1f2937; font-weight: 600;">${escapeHtml(student.dropoutStatus)}</span>
+                </div>
+                ${student.financial ? `
+                <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 12px;">
+                  <div style="font-weight: 600; color: #374151; margin-bottom: 8px; font-size: 14px;">💰 Financial Information</div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-weight: 500; color: #6b7280;">Fee Balance:</span>
+                    <span style="color: #1f2937; font-weight: 600;">$${student.financial.feeBalance.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-weight: 500; color: #6b7280;">Scholarship:</span>
+                    <span style="color: #1f2937; font-weight: 600;">$${student.financial.scholarshipAmount.toFixed(2)}</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; color: #6b7280;">Payment Status:</span>
+                    <span style="color: #1f2937; font-weight: 600;">${escapeHtml(student.financial.paymentStatus)}</span>
+                  </div>
+                </div>
+                ` : ''}
+                ${student.advisorId ? `
+                <div style="border-top: 1px solid #e5e7eb; margin-top: 8px; padding-top: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; color: #6b7280;">Assigned Advisor ID:</span>
+                    <span style="color: #1f2937; font-weight: 600;">${student.advisorId}</span>
+                  </div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+              <button onclick="window.location.href='mailto:${escapeHtml(student.email)}';" class="btn primary" style="padding: 10px 20px;">
+                📧 Send Email
+              </button>
+              <button onclick="closeStudentDetailsModal()" class="btn secondary" style="padding: 10px 20px;">
+                Close
+              </button>
+            </div>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading student details:', error);
+        content.innerHTML = `
+          <div style="text-align: center; padding: 40px; color: #dc2626;">
+            <div style="font-size: 48px; margin-bottom: 12px;">⚠️</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">Error Loading Student Details</div>
+            <div style="color: #6b7280; font-size: 14px;">${escapeHtml(error.message)}</div>
+            <button onclick="closeStudentDetailsModal()" class="btn secondary" style="margin-top: 20px; padding: 10px 20px;">Close</button>
+          </div>
+        `;
+      }
+    }
+
+    function closeStudentDetailsModal() {
+      const modal = document.getElementById('student-details-modal');
+      modal.style.display = 'none';
+    }
+
+    // Response modal functions
+    function openResponseModal(timestamp, studentEmail, studentName, studentPhone, responseId = null) {
+      const modal = document.getElementById('response-modal');
+      const modalTitle = document.getElementById('response-modal-title');
+      
+      if (responseId) {
+        modalTitle.textContent = 'Edit Response';
+      } else {
+        modalTitle.textContent = 'Add Response';
+        // Set default date/time to now
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('response-contact-date').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+      
+      // Set form values
+      document.getElementById('response-id').value = responseId || '';
+      document.getElementById('response-timestamp').value = timestamp || '';
+      document.getElementById('response-student-email').value = studentEmail || '';
+      document.getElementById('response-student-name').value = studentName || '';
+      document.getElementById('response-student-phone').value = studentPhone || '';
+      
+      modal.style.display = 'flex';
+    }
+
+    function editResponse(responseId, timestamp, studentEmail, studentName, studentPhone, contactMethod, contactDate, notes, status) {
+      openResponseModal(timestamp, studentEmail, studentName, studentPhone, responseId);
+      
+      // Set form values for editing
+      document.getElementById('response-contact-method').value = contactMethod || '';
+      document.getElementById('response-status').value = status || 'Pending';
+      // Unescape JavaScript-escaped notes (HTML entities are automatically decoded by browser)
+      document.getElementById('response-notes').value = (notes || '').replace(/\\n/g, '\n').replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+      
+      // Format date for datetime-local input
+      if (contactDate) {
+        try {
+          const date = new Date(contactDate);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            document.getElementById('response-contact-date').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+          }
+        } catch (e) {
+          console.error('Error parsing date:', e);
+        }
+      }
+    }
+
+    function closeResponseModal() {
+      const modal = document.getElementById('response-modal');
+      modal.style.display = 'none';
+      document.getElementById('response-form').reset();
+      document.getElementById('response-id').value = '';
+    }
+
+    async function saveResponse(event) {
+      event.preventDefault();
+      
+      const advisorId = localStorage.getItem('advisorId');
+      if (!advisorId) {
+        alert('Please log in as an advisor to save responses');
+        return;
+      }
+
+      const responseId = document.getElementById('response-id').value;
+      const timestamp = document.getElementById('response-timestamp').value;
+      const studentEmail = document.getElementById('response-student-email').value;
+      const studentName = document.getElementById('response-student-name').value;
+      const studentPhone = document.getElementById('response-student-phone').value;
+      const contactMethod = document.getElementById('response-contact-method').value;
+      const contactDate = document.getElementById('response-contact-date').value;
+      const responseNotes = document.getElementById('response-notes').value;
+      const status = document.getElementById('response-status').value;
+
+      const submitButton = event.target.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.textContent = 'Saving...';
+
+      try {
+        const url = responseId 
+          ? `${API_BASE_URL}/api/help-request-responses/${responseId}`
+          : `${API_BASE_URL}/api/help-request-responses`;
+        
+        const method = responseId ? 'PUT' : 'POST';
+        const body = responseId 
+          ? {
+              contactMethod,
+              contactDate,
+              responseNotes,
+              status
+            }
+          : {
+              googleFormTimestamp: timestamp,
+              studentEmail,
+              studentName,
+              studentPhone,
+              advisorId,
+              contactMethod,
+              contactDate,
+              responseNotes,
+              status
+            };
+
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert(`✅ Response ${responseId ? 'updated' : 'saved'} successfully!`);
+          closeResponseModal();
+          // Reload responses to show the new/updated response
+          await loadGoogleFormResponses();
+        } else {
+          throw new Error(result.error || 'Failed to save response');
+        }
+      } catch (error) {
+        console.error('Error saving response:', error);
+        alert(`❌ Failed to save response: ${error.message}`);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Save Response';
+      }
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+      const responseModal = document.getElementById('response-modal');
+      const studentDetailsModal = document.getElementById('student-details-modal');
+      const searchResults = document.getElementById('student-search-results');
+      
+      if (responseModal && e.target === responseModal) {
+        closeResponseModal();
+      }
+      
+      if (studentDetailsModal && e.target === studentDetailsModal) {
+        closeStudentDetailsModal();
+      }
+      
+      if (searchResults && !e.target.closest('#student-search-input') && !e.target.closest('#student-search-results')) {
+        searchResults.style.display = 'none';
+      }
+    });
 
     function getTimeAgo(date) {
       const seconds = Math.floor((new Date() - date) / 1000);
@@ -827,9 +1375,20 @@
     }
 
     function escapeHtml(text) {
+      if (!text) return '';
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    function escapeJs(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
     }
 
     async function loadStudents() {
@@ -976,7 +1535,7 @@
       updateCourseList();
       // Render charts if analytics tab already visible
       maybeRenderAnalyticsCharts();
-      // Load Students Status s if tab is active
+      // Load Students Status if tab is active
       if (document.getElementById('status-students')?.classList.contains('active')) {
         await loadStatusStudents();
       }
@@ -1468,12 +2027,12 @@
         // Slight delay to ensure canvas is laid out
         setTimeout(maybeRenderAnalyticsCharts, 0);
       } else if (tabId === 'status-students') {
-        // Load Students Status s when tab is clicked
+        // Load Students Status when tab is clicked
         loadStatusStudents();
       }
     });
 
-    // Add real-time search for Students Status s
+    // Add real-time search for Students Status
     document.addEventListener('DOMContentLoaded', () => {
       const statusSearch = document.getElementById('status-search');
       if (statusSearch) {
@@ -2244,7 +2803,7 @@
       }
     }
 
-    // Students Status s Management Functions
+    // Students Status Management Functions
     let statusStudents = [];
     let studentStatuses = {}; // Store student statuses in memory (in production, use database)
 
@@ -2322,7 +2881,7 @@
           listContainer.innerHTML = '<div class="list-item" style="text-align: center; color: #dc2626; padding: 20px;">Failed to load students. Please try refreshing the page.</div>';
         }
       } catch (error) {
-        console.error('❌ Error loading Students Status s:', error);
+        console.error('❌ Error loading Students Status:', error);
         if (listContainer) {
           listContainer.innerHTML = `<div class="list-item" style="text-align: center; color: #dc2626; padding: 20px;">Error loading students: ${error.message}</div>`;
         }
@@ -2825,7 +3384,7 @@
     <div id="status-students" class="tab-content">
       <div class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2><span class="card-icon">👥</span>Students Status s</h2>
+          <h2><span class="card-icon">👥</span>Students Status</h2>
           <div style="display: flex; gap: 10px;">
             <button class="btn primary" onclick="openAddStudentToStatusModal()">Add Student</button>
           </div>
@@ -2882,9 +3441,115 @@
             </a>
           </div>
         </div>
+        
+        <!-- Student Search Bar -->
+        <div style="margin-bottom: 20px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; position: relative;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-weight: 600; color: #374151; font-size: 14px;">🔍 Search Students:</span>
+            <span style="font-size: 12px; color: #6b7280;">Find students by name, ID, or email</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: flex-start;">
+            <div style="position: relative; flex: 1;">
+              <input 
+                type="text" 
+                id="student-search-input" 
+                placeholder="Type to search students (name, ID, or email)..." 
+                style="width: 100%; padding: 12px 40px 12px 14px; border: 2px solid #3b82f6; border-radius: 8px; font-size: 14px; background: white;"
+              oninput="handleStudentSearch(this.value);"
+              onkeydown="if(event.key === 'Enter') { handleStudentSearch(this.value, true); }"
+              onfocus="if(this.value.trim().length > 0) handleStudentSearch(this.value, true);"
+              />
+              <button 
+                onclick="document.getElementById('student-search-input').value = ''; document.getElementById('student-search-results').style.display = 'none'; loadGoogleFormResponses();" 
+                style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: #6b7280; padding: 4px;"
+                title="Clear search"
+              >✕</button>
+              <div id="student-search-results" style="display: none; position: absolute; z-index: 1000; background: white; border: 2px solid #e5e7eb; border-radius: 8px; margin-top: 4px; max-height: 300px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; top: 100%; left: 0;"></div>
+            </div>
+            <button 
+              onclick="const searchVal = document.getElementById('student-search-input').value; if(searchVal.trim()) { handleStudentSearch(searchVal.trim(), true); } else { document.getElementById('student-search-results').style.display = 'none'; }" 
+              class="btn primary"
+              style="padding: 12px 20px; white-space: nowrap; height: fit-content;"
+              title="Search students"
+            >
+              🔍 Search
+            </button>
+          </div>
+        </div>
+        
         <div id="google-form-responses-list" class="list">
           <div class="loading">Loading help request responses...</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Student Details Modal -->
+    <div id="student-details-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10001; align-items: center; justify-content: center;">
+      <div style="background: white; border-radius: 12px; padding: 24px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px;">
+          <h3 style="margin: 0; font-size: 22px; font-weight: 600; color: #1f2937;">👤 Student Details</h3>
+          <button onclick="closeStudentDetailsModal()" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #6b7280; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">×</button>
+        </div>
+        <div id="student-details-content">
+          <div style="text-align: center; padding: 40px; color: #6b7280;">
+            <div style="display: inline-block; width: 32px; height: 32px; border: 3px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+            <div style="margin-top: 12px;">Loading student details...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add/Edit Response Modal -->
+    <div id="response-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+      <div style="background: white; border-radius: 12px; padding: 24px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="margin: 0; font-size: 20px; font-weight: 600;" id="response-modal-title">Add Response</h3>
+          <button onclick="closeResponseModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #6b7280;">×</button>
+        </div>
+        <form id="response-form" onsubmit="saveResponse(event)" style="display: grid; gap: 16px;">
+          <input type="hidden" id="response-id" />
+          <input type="hidden" id="response-timestamp" />
+          <input type="hidden" id="response-student-email" />
+          <input type="hidden" id="response-student-name" />
+          <input type="hidden" id="response-student-phone" />
+          
+          <div>
+            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Contact Method *</label>
+            <select id="response-contact-method" required style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px;">
+              <option value="">Select contact method...</option>
+              <option value="Email">📧 Email</option>
+              <option value="Phone">📞 Phone</option>
+              <option value="In-Person">👥 In-Person</option>
+              <option value="Video Call">🎥 Video Call</option>
+              <option value="Other">🔷 Other</option>
+            </select>
+          </div>
+          
+          <div>
+            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Contact Date *</label>
+            <input type="datetime-local" id="response-contact-date" required style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px;" />
+          </div>
+          
+          <div>
+            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Status</label>
+            <select id="response-status" style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px;">
+              <option value="Pending">⏳ Pending</option>
+              <option value="In Progress">🔄 In Progress</option>
+              <option value="Resolved">✅ Resolved</option>
+              <option value="Follow-up Required">🔔 Follow-up Required</option>
+            </select>
+          </div>
+          
+          <div>
+            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">Response Notes</label>
+            <textarea id="response-notes" rows="5" placeholder="Enter details about the response, conversation, or follow-up actions..." style="width: 100%; padding: 12px 14px; border: 2px solid #e8ecf2; border-radius: 8px; font-size: 14px; resize: vertical;"></textarea>
+          </div>
+          
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+            <button type="button" onclick="closeResponseModal()" class="btn secondary" style="padding: 10px 20px;">Cancel</button>
+            <button type="submit" class="btn primary" style="padding: 10px 20px;">Save Response</button>
+          </div>
+        </form>
       </div>
     </div>
 

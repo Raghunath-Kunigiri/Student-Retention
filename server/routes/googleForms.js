@@ -14,8 +14,25 @@ const SHEET_GID = '2130650484'; // GID from the URL
  */
 router.get('/responses', async (req, res) => {
   try {
-    const { advisorName } = req.query;
-    console.log('📋 Fetching Google Form responses...', { advisorName: advisorName || 'all' });
+    const { advisorName, advisorId } = req.query;
+    console.log('📋 Fetching Google Form responses...', { advisorName: advisorName || null, advisorId: advisorId || null });
+    
+    // If advisorId is provided, get advisor name from database
+    let advisorNameToFilter = advisorName;
+    if (advisorId && !advisorName) {
+      try {
+        const Advisor = require('../models/Advisor');
+        const advisor = await Advisor.findOne({ advisorId: parseInt(advisorId) });
+        if (advisor) {
+          advisorNameToFilter = `${advisor.firstName} ${advisor.lastName}`;
+          console.log(`✅ Found advisor: ${advisorNameToFilter} (ID: ${advisorId})`);
+        } else {
+          console.log(`⚠️ Advisor not found with ID: ${advisorId}, filtering by ID only`);
+        }
+      } catch (err) {
+        console.error('Error fetching advisor:', err);
+      }
+    }
 
     // Try multiple export URL formats (order matters - most reliable first)
     // Method 1: Direct CSV export with GID (most reliable, less likely to redirect)
@@ -212,22 +229,70 @@ router.get('/responses', async (req, res) => {
     }
     console.log('✅ Parsed responses:', allResponses.length);
 
-    // Filter by advisor name if provided
+    // Filter by advisor name or ID if provided
     let responses = allResponses;
-    if (advisorName && advisorColumnIndex !== -1) {
+    if ((advisorNameToFilter || advisorId) && advisorColumnIndex !== -1) {
+      const advisorColumnName = headers[advisorColumnIndex];
       responses = allResponses.filter(resp => {
-        const rowAdvisorName = resp[headers[advisorColumnIndex]]?.trim();
-        return rowAdvisorName && 
-               rowAdvisorName.toLowerCase().includes(advisorName.toLowerCase());
+        const rowAdvisorValue = (resp[advisorColumnName] || '').trim();
+        
+        // Skip if no advisor assigned
+        if (!rowAdvisorValue || rowAdvisorValue.toLowerCase() === 'not assigned' || rowAdvisorValue === '') {
+          return false;
+        }
+        
+        // Check if advisor name matches (partial match for flexibility)
+        if (advisorNameToFilter) {
+          const advisorNameLower = advisorNameToFilter.toLowerCase();
+          const rowValueLower = rowAdvisorValue.toLowerCase();
+          
+          // Full name match
+          if (rowValueLower === advisorNameLower) {
+            return true;
+          }
+          
+          // Partial match (e.g., "Gowtham" matches "Gowtham Kalamandalapadu")
+          const advisorNameParts = advisorNameLower.split(' ');
+          const matchesAllParts = advisorNameParts.every(part => 
+            part.length > 0 && rowValueLower.includes(part)
+          );
+          if (matchesAllParts) {
+            return true;
+          }
+          
+          // Reverse match (row contains advisor name)
+          if (rowValueLower.includes(advisorNameLower)) {
+            return true;
+          }
+        }
+        
+        // Check if advisor ID matches (if the column contains numeric ID)
+        if (advisorId) {
+          const numericId = parseInt(advisorId);
+          // Check if the advisor column contains the numeric ID
+          if (rowAdvisorValue === String(numericId) || 
+              rowAdvisorValue.includes(String(numericId)) ||
+              rowAdvisorValue.startsWith(String(numericId) + ' ') ||
+              rowAdvisorValue.endsWith(' ' + String(numericId))) {
+            return true;
+          }
+        }
+        
+        return false;
       });
+      console.log(`🔍 Filtered responses: ${responses.length} of ${allResponses.length} (filtered by: ${advisorNameToFilter || advisorId})`);
+    } else if (advisorId || advisorNameToFilter) {
+      // If filtering requested but no advisor column found, log warning
+      console.warn(`⚠️ Advisor filtering requested but no 'Advisor' column found in Google Sheet`);
     }
 
     res.json({ 
       responses,
       total: responses.length,
       totalAll: allResponses.length,
-      advisorName: advisorName || null,
-      filtered: !!advisorName
+      advisorName: advisorNameToFilter || advisorName || null,
+      advisorId: advisorId || null,
+      filtered: !!(advisorNameToFilter || advisorId)
     });
 
   } catch (error) {

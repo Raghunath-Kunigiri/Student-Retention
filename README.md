@@ -99,6 +99,5 @@ The server allows requests only from origins listed in `ALLOWED_ORIGINS` (comma-
 - Missing Mongo URI: The server exits with a message if `MONGODB_URI` is not set.
 - Connection issues: Ensure your IP is whitelisted in MongoDB Atlas and the database user has proper permissions.
 - CORS errors: Update `ALLOWED_ORIGINS` to include your frontend origin(s).
-
 ## License
 Unlicensed/educational use. Add your preferred license if required.
