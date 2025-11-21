@@ -41,26 +41,48 @@ router.get('/csv-stats', async (req, res) => {
     }
     const activeEnrollments = activeSet.size;
 
-    // Retention (year-over-year using enrollments.csv):
-    // Identify the latest two years, cohort = unique students in year N-1, retained = also present in year N
-    const yearToStudents = new Map();
-    for (const e of enrollmentsData) {
-      const ts = new Date(e.enrolled_date);
-      if (isNaN(ts.getTime())) continue;
-      const y = ts.getFullYear();
-      if (!yearToStudents.has(y)) yearToStudents.set(y, new Set());
-      yearToStudents.get(y).add(e.student_id);
-    }
-    const years = Array.from(yearToStudents.keys()).sort((a,b)=>a-b);
+    // Retention calculation using students.csv dropout_status_2024 field
+    // This is more accurate than enrollment-based calculation as it uses actual dropout status
     let retentionRate = 0;
-    if (years.length >= 2) {
-      const fromYear = years[years.length - 2];
-      const toYear = years[years.length - 1];
-      const cohort = yearToStudents.get(fromYear);
-      const next = yearToStudents.get(toYear);
-      let retainedCount = 0;
-      for (const id of cohort) if (next.has(id)) retainedCount++;
-      retentionRate = cohort.size > 0 ? Math.round((retainedCount / cohort.size) * 100) : 0;
+    if (studentsData && studentsData.length > 0) {
+      // Count students with dropout_status_2024 = "Retained"
+      const retainedStudents = studentsData.filter(s => {
+        const status = (s.dropout_status_2024 || '').toString().trim();
+        return status.toLowerCase() === 'retained';
+      }).length;
+      
+      // Count students with dropout_status_2024 = "Dropped" 
+      const droppedStudents = studentsData.filter(s => {
+        const status = (s.dropout_status_2024 || '').toString().trim();
+        return status.toLowerCase() === 'dropped';
+      }).length;
+      
+      // Total students with a dropout status (Retained + Dropped)
+      const totalWithStatus = retainedStudents + droppedStudents;
+      
+      if (totalWithStatus > 0) {
+        retentionRate = Math.round((retainedStudents / totalWithStatus) * 100);
+      } else {
+        // Fallback to enrollment-based calculation if dropout_status_2024 is not available
+        const yearToStudents = new Map();
+        for (const e of enrollmentsData) {
+          const ts = new Date(e.enrolled_date);
+          if (isNaN(ts.getTime())) continue;
+          const y = ts.getFullYear();
+          if (!yearToStudents.has(y)) yearToStudents.set(y, new Set());
+          yearToStudents.get(y).add(e.student_id);
+        }
+        const years = Array.from(yearToStudents.keys()).sort((a,b)=>a-b);
+        if (years.length >= 2) {
+          const fromYear = years[years.length - 2];
+          const toYear = years[years.length - 1];
+          const cohort = yearToStudents.get(fromYear);
+          const next = yearToStudents.get(toYear);
+          let retainedCount = 0;
+          for (const id of cohort) if (next.has(id)) retainedCount++;
+          retentionRate = cohort.size > 0 ? Math.round((retainedCount / cohort.size) * 100) : 0;
+        }
+      }
     }
     
     const stats = {
