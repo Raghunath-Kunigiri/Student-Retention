@@ -25,8 +25,18 @@ app.use(cors({
       return callback(null, true);
     }
     
+    // Allow Vercel domains
+    if (origin.includes('.vercel.app') || origin.includes('vercel.app')) {
+      return callback(null, true);
+    }
+    
     // Allow allowed origins
     if (ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    // In production/Vercel, be more permissive
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
       return callback(null, true);
     }
     
@@ -52,6 +62,27 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+// For Vercel deployment - connect DB lazily (before routes)
+if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+  // Connect to DB on first request (lazy connection for serverless)
+  app.use(async (req, res, next) => {
+    try {
+      if (mongoose.connection.readyState === 0) {
+        await connectDB();
+      }
+      next();
+    } catch (error) {
+      console.error('Database connection error:', error);
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Database connection failed',
+          message: error.message 
+        });
+      }
+    }
+  });
+}
 
 // Routes
 app.use('/api/entries', require('./routes/entries'));
@@ -112,22 +143,24 @@ async function start() {
   }
 }
 
-// For Vercel deployment
-if (process.env.NODE_ENV === 'production') {
-  // Connect to DB on first request
-  app.use(async (req, res, next) => {
-    try {
-      if (mongoose.connection.readyState === 0) {
-        await connectDB();
-      }
-      next();
-    } catch (error) {
-      console.error('Database connection error:', error);
-      res.status(500).json({ error: 'Database connection failed' });
-    }
-  });
-} else {
-  // For local development
+// 404 handler for API routes - return JSON instead of HTML
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// Error handling middleware - must be after all routes
+app.use((err, req, res, next) => {
+  console.error('Express error:', err);
+  if (!res.headersSent) {
+    res.status(err.status || 500).json({
+      error: err.message || 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
+  }
+});
+
+// For local development
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'production') {
   start();
 }
 

@@ -17,6 +17,17 @@
       "destination": "/api/server"
     }
   ],
+  "headers": [
+    {
+      "source": "/src/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
+    }
+  ],
   "env": {
     "NODE_ENV": "production"
   }
