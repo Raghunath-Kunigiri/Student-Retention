@@ -193,10 +193,10 @@ router.get('/csv-students', async (req, res) => {
         enrollmentStatus: student.enrollment_status,
         advisorId: student.advisor_id,
         academic: academic ? {
-          gpa: parseFloat(academic.gpa),
+          gpa: isNaN(parseFloat(academic.gpa)) ? 0 : parseFloat(academic.gpa),
           creditsEarned: Math.min(parseInt(academic.credits_earned) || 0, 33), // Cap at 33
           attendanceAbsences: parseInt(academic.attendance_absences)
-        } : null
+        } : { gpa: 0, creditsEarned: 0, attendanceAbsences: 0 }
       };
     });
     

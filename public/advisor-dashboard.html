@@ -3148,13 +3148,29 @@
         let highRisk = 0, mediumRisk = 0, noRisk = 0;
         
         for (const s of data) {
-          const g = s?.academic?.gpa ?? 0;
+          // Handle missing academic data or invalid GPA
+          let g = s?.academic?.gpa;
+          
+          // Convert to number and handle all edge cases
+          if (g === null || g === undefined) {
+            g = 0; // Treat missing academic data as 0 (high risk)
+          } else {
+            g = parseFloat(g);
+            if (isNaN(g) || g < 0) {
+              g = 0; // Treat invalid/negative GPA as 0 (high risk)
+            }
+          }
+          
+          // Count ALL students - every student should be in one category
           if (g >= 0 && g <= 2.9) {
             highRisk++;
           } else if (g >= 3.0 && g <= 3.2) {
             mediumRisk++;
           } else if (g > 3.2) {
             noRisk++;
+          } else {
+            // Fallback: count as high risk if somehow not caught above
+            highRisk++;
           }
         }
 
