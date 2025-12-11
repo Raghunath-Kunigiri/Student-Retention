@@ -3,7 +3,13 @@ const Student = require('../models/Student');
 const Advisor = require('../models/Advisor');
 require('dotenv').config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://kunigiriraghunath9493:ZHIb5Fiq4kzo40UR@portfolio.kxnf8sl.mongodb.net/student_retention';
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('❌ Error: MONGODB_URI environment variable is required');
+  console.error('   Please set it in your .env file');
+  process.exit(1);
+}
 
 async function clearDatabase() {
   try {
