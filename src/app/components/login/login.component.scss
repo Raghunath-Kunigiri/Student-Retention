@@ -1,0 +1,18 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--bg, linear-gradient(0deg, rgba(255,255,255,.92), rgba(255,255,255,.92)), url('../../../../Images/International_Advisors_building.png') center / cover no-repeat fixed);
+}
+
+.error-text {
+  color: var(--error, #dc2626);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+// Import styles from original theme
+@import '../../../../public/styles/theme.css';
+

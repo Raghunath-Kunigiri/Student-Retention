@@ -1,0 +1,196 @@
+<div class="login-container">
+  <canvas id="particle-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:9998;"></canvas>
+
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">Horizon State University</div>
+    </div>
+
+    <div class="shell">
+      <main class="welcome">
+        <div class="logo">
+          <h1>Welcome to Horizon State University!</h1>
+          <p>We support students and advisors with tools to track progress, manage cases, and coordinate appointments. Explore key resources below or sign in to your portal.</p>
+        </div>
+        
+        <div class="login-tabs-container">
+          <!-- Mode Toggle -->
+          <div class="mode-toggle">
+            <button 
+              class="mode-btn" 
+              [class.active]="currentMode === 'login'"
+              (click)="switchMode('login')">
+              Login
+            </button>
+            <button 
+              class="mode-btn" 
+              [class.active]="currentMode === 'signup'"
+              (click)="switchMode('signup')">
+              Sign Up
+            </button>
+          </div>
+
+          <div class="login-tabs-header">
+            <button 
+              class="login-tab-btn" 
+              [class.active]="currentType === 'student'"
+              (click)="switchType('student')">
+              Student
+            </button>
+            <button 
+              class="login-tab-btn" 
+              [class.active]="currentType === 'advisor'"
+              (click)="switchType('advisor')">
+              Advisor
+            </button>
+          </div>
+          
+          <!-- Student Login Form -->
+          <div *ngIf="currentMode === 'login' && currentType === 'student'" class="login-section">
+            <form [formGroup]="studentLoginForm" (ngSubmit)="onStudentLogin()">
+              <div class="form-group">
+                <label for="student-id-index">Student ID</label>
+                <input 
+                  type="text" 
+                  id="student-id-index" 
+                  formControlName="studentId"
+                  placeholder="Enter your student ID">
+                <div *ngIf="studentLoginForm.get('studentId')?.hasError('required') && studentLoginForm.get('studentId')?.touched" 
+                     class="error-text">Student ID is required</div>
+              </div>
+              <div class="form-group">
+                <label for="password-student-index">Password</label>
+                <input 
+                  type="password" 
+                  id="password-student-index" 
+                  formControlName="password"
+                  placeholder="Enter your password">
+                <div *ngIf="studentLoginForm.get('password')?.hasError('required') && studentLoginForm.get('password')?.touched" 
+                     class="error-text">Password is required</div>
+              </div>
+              <button type="submit" class="submit-btn" [disabled]="studentLoginForm.invalid">Sign In</button>
+            </form>
+          </div>
+
+          <!-- Student Signup Form -->
+          <div *ngIf="currentMode === 'signup' && currentType === 'student'" class="login-section">
+            <form [formGroup]="studentSignupForm" (ngSubmit)="onStudentSignup()">
+              <div class="form-group">
+                <label for="full-name-student">Full Name</label>
+                <input type="text" id="full-name-student" formControlName="fullName" placeholder="Enter your full name">
+              </div>
+              <div class="form-group">
+                <label for="email-student">Email Address</label>
+                <input type="email" id="email-student" formControlName="email" placeholder="Enter your email">
+              </div>
+              <div class="form-group">
+                <label for="student-id-signup">Student ID</label>
+                <input type="text" id="student-id-signup" formControlName="studentId" placeholder="Enter your student ID">
+              </div>
+              <div class="form-group">
+                <label for="major-signup">Major/Program</label>
+                <select id="major-signup" formControlName="major">
+                  <option value="">Select your major</option>
+                  <option value="computer-science">Computer Science</option>
+                  <option value="engineering">Engineering</option>
+                  <option value="business">Business Administration</option>
+                  <option value="medicine">Medicine</option>
+                  <option value="arts">Arts & Humanities</option>
+                  <option value="sciences">Natural Sciences</option>
+                  <option value="education">Education</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="password-student-signup">Password</label>
+                <input type="password" id="password-student-signup" formControlName="password" placeholder="Create a password (min 6 characters)">
+              </div>
+              <div class="form-group">
+                <label for="confirm-password-student">Confirm Password</label>
+                <input type="password" id="confirm-password-student" formControlName="confirmPassword" placeholder="Confirm your password">
+                <div *ngIf="studentSignupForm.hasError('passwordMismatch') && studentSignupForm.get('confirmPassword')?.touched" 
+                     class="error-text">Passwords do not match</div>
+              </div>
+              <button type="submit" class="submit-btn" [disabled]="studentSignupForm.invalid">Create Account</button>
+            </form>
+          </div>
+          
+          <!-- Advisor Login Form -->
+          <div *ngIf="currentMode === 'login' && currentType === 'advisor'" class="login-section">
+            <form [formGroup]="advisorLoginForm" (ngSubmit)="onAdvisorLogin()">
+              <div class="form-group">
+                <label for="advisor-email-index">Email Address</label>
+                <input type="email" id="advisor-email-index" formControlName="email" placeholder="Enter your email">
+              </div>
+              <div class="form-group">
+                <label for="password-advisor-index">Password</label>
+                <input type="password" id="password-advisor-index" formControlName="password" placeholder="Enter your password">
+              </div>
+              <div class="form-group">
+                <label for="department-index">Department</label>
+                <select id="department-index" formControlName="department">
+                  <option value="">Select Department</option>
+                  <option value="computer-science">Computer Science</option>
+                  <option value="engineering">Engineering</option>
+                  <option value="business">Business</option>
+                  <option value="medicine">Medicine</option>
+                  <option value="arts">Arts & Humanities</option>
+                </select>
+              </div>
+              <button type="submit" class="submit-btn" [disabled]="advisorLoginForm.invalid">Sign In</button>
+            </form>
+          </div>
+
+          <!-- Advisor Signup Form -->
+          <div *ngIf="currentMode === 'signup' && currentType === 'advisor'" class="login-section">
+            <form [formGroup]="advisorSignupForm" (ngSubmit)="onAdvisorSignup()">
+              <div class="form-group">
+                <label for="full-name-advisor">Full Name</label>
+                <input type="text" id="full-name-advisor" formControlName="fullName" placeholder="Enter your full name">
+              </div>
+              <div class="form-group">
+                <label for="email-advisor-signup">Email Address</label>
+                <input type="email" id="email-advisor-signup" formControlName="email" placeholder="Enter your email">
+              </div>
+              <div class="form-group">
+                <label for="advisor-id-signup">Employee ID</label>
+                <input type="text" id="advisor-id-signup" formControlName="advisorId" placeholder="Enter your employee ID">
+              </div>
+              <div class="form-group">
+                <label for="department-signup">Department</label>
+                <select id="department-signup" formControlName="department">
+                  <option value="">Select Department</option>
+                  <option value="computer-science">Computer Science</option>
+                  <option value="engineering">Engineering</option>
+                  <option value="business">Business Administration</option>
+                  <option value="medicine">Medicine</option>
+                  <option value="arts">Arts & Humanities</option>
+                  <option value="sciences">Natural Sciences</option>
+                  <option value="education">Education</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="specialization-signup">Specialization</label>
+                <input type="text" id="specialization-signup" formControlName="specialization" placeholder="e.g., Academic Advising, Career Counseling">
+              </div>
+              <div class="form-group">
+                <label for="password-advisor-signup">Password</label>
+                <input type="password" id="password-advisor-signup" formControlName="password" placeholder="Create a password (min 6 characters)">
+              </div>
+              <div class="form-group">
+                <label for="confirm-password-advisor">Confirm Password</label>
+                <input type="password" id="confirm-password-advisor" formControlName="confirmPassword" placeholder="Confirm your password">
+                <div *ngIf="advisorSignupForm.hasError('passwordMismatch') && advisorSignupForm.get('confirmPassword')?.touched" 
+                     class="error-text">Passwords do not match</div>
+              </div>
+              <button type="submit" class="submit-btn" [disabled]="advisorSignupForm.invalid">Create Account</button>
+            </form>
+          </div>
+        </div>
+        
+        <div *ngIf="errorMessage" id="error-message-index" class="message">{{ errorMessage }}</div>
+        <div *ngIf="successMessage" id="success-message-index" class="message">{{ successMessage }}</div>
+      </main>
+    </div>
+  </div>
+</div>
+

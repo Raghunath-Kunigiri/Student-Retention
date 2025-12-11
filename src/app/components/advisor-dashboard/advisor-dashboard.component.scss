@@ -1,0 +1,37 @@
+.advisor-dashboard {
+  padding: 20px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  
+  button {
+    padding: 10px 20px;
+    border: none;
+    background: #f1f5f9;
+    cursor: pointer;
+    border-radius: 6px;
+    
+    &.active {
+      background: #0d47a1;
+      color: white;
+    }
+  }
+}
+
+.tab-content {
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+

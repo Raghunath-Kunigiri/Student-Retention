@@ -1,0 +1,39 @@
+<div class="advisor-dashboard">
+  <header>
+    <h1>Advisor Dashboard</h1>
+    <div class="user-info">
+      <span>Welcome, {{ currentUser?.fullName }}</span>
+      <button (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button [class.active]="activeTab === 'overview'" (click)="switchTab('overview')">Overview</button>
+    <button [class.active]="activeTab === 'students'" (click)="switchTab('students')">Students</button>
+    <button [class.active]="activeTab === 'requests'" (click)="switchTab('requests')">Requests</button>
+    <button [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">Analytics</button>
+  </nav>
+
+  <main>
+    <div *ngIf="activeTab === 'overview'" class="tab-content">
+      <h2>Overview</h2>
+      <p>Dashboard overview content will be displayed here.</p>
+    </div>
+
+    <div *ngIf="activeTab === 'students'" class="tab-content">
+      <h2>My Students</h2>
+      <p>Student list will be displayed here.</p>
+    </div>
+
+    <div *ngIf="activeTab === 'requests'" class="tab-content">
+      <h2>Help Requests</h2>
+      <p>Help requests will be displayed here.</p>
+    </div>
+
+    <div *ngIf="activeTab === 'analytics'" class="tab-content">
+      <h2>Analytics</h2>
+      <p>Analytics charts will be displayed here.</p>
+    </div>
+  </main>
+</div>
+

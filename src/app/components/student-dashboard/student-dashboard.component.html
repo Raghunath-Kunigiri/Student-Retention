@@ -1,0 +1,45 @@
+<div class="student-dashboard">
+  <header>
+    <h1>Student Dashboard</h1>
+    <div class="user-info">
+      <span>Welcome, {{ currentUser?.fullName }}</span>
+      <button (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="help-request-section">
+      <h2>Submit Help Request</h2>
+      <form [formGroup]="helpRequestForm" (ngSubmit)="submitHelpRequest()">
+        <div class="form-group">
+          <label>Category</label>
+          <select formControlName="category">
+            <option value="">Select Category</option>
+            <option value="academic">Academic</option>
+            <option value="financial">Financial</option>
+            <option value="personal">Personal</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input type="text" formControlName="subject">
+        </div>
+        <div class="form-group">
+          <label>Details</label>
+          <textarea formControlName="details"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Urgency</label>
+          <select formControlName="urgency">
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <button type="submit" [disabled]="helpRequestForm.invalid">Submit Request</button>
+      </form>
+    </section>
+  </main>
+</div>
+

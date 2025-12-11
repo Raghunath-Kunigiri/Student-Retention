@@ -47,15 +47,28 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Serve static files from public directory
-app.use(express.static(path.join(__dirname, '../public')));
-app.use('/src', express.static(path.join(__dirname, '../src')));
-app.use('/Images', express.static(path.join(__dirname, '../Images')));
+// Serve Angular app in production, static files in development
+if (process.env.NODE_ENV === 'production') {
+  // Serve Angular build files
+  app.use(express.static(path.join(__dirname, '../dist/student-retention')));
+  
+  // All non-API routes should serve Angular app
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(__dirname, '../dist/student-retention/index.html'));
+    }
+  });
+} else {
+  // Serve static files from public directory in development
+  app.use(express.static(path.join(__dirname, '../public')));
+  app.use('/src', express.static(path.join(__dirname, '../src')));
+  app.use('/Images', express.static(path.join(__dirname, '../Images')));
 
-// Root route - redirect to main page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
+  // Root route - redirect to main page
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+  });
+}
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // Health

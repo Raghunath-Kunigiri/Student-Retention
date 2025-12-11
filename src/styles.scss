@@ -1,0 +1,19 @@
+/* Import existing styles */
+@import '../public/styles/theme.css';
+@import '../src/styles/variables.css';
+@import '../src/styles/cursor.css';
+@import '../src/styles/interactions.css';
+
+/* Global Angular styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
