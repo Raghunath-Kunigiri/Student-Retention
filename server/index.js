@@ -105,6 +105,7 @@ app.use('/api/migration', require('./routes/migration'));
 app.use('/api/student-notifications', require('./routes/studentNotifications'));
 app.use('/api/google-forms', require('./routes/googleForms'));
 app.use('/api/help-request-responses', require('./routes/helpRequestResponses'));
+app.use('/api/activities', require('./routes/activities'));
 
 // Notifications route with error handling
 try {

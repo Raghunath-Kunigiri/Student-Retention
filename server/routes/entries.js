@@ -6,6 +6,7 @@ const Reply = require('../models/Reply');
 const Message = require('../models/Message');
 const Student = require('../models/Student');
 const Advisor = require('../models/Advisor');
+const Activity = require('../models/Activity');
 const { sendHelpRequestNotification } = require('../utils/emailService');
 const { getStudentAdvisor, assignAdvisorToStudent } = require('../utils/advisorAssignment');
 const csvParser = require('../utils/csvParser');
@@ -192,6 +193,35 @@ router.post('/', async (req, res) => {
           });
 
           console.log(`📬 Notification pushed to advisor ${advisor.fullName} (ID: ${advisor.advisorId}) dashboard`);
+
+          // Create activity for help request
+          try {
+            await Activity.createActivity({
+              studentId: student.studentId,
+              student: student._id,
+              type: 'help_request',
+              title: `Help Request: ${entry.data.subject || entry.data.category || 'General'}`,
+              description: entry.data.details || '',
+              performedBy: {
+                type: 'student',
+                studentId: student.studentId,
+                studentName: `${student.firstName} ${student.lastName}`
+              },
+              metadata: {
+                category: entry.data.category,
+                subject: entry.data.subject,
+                urgency: entry.data.urgency,
+                entryId: entry._id,
+                notificationId: notification._id
+              },
+              priority: entry.data.urgency === 'urgent' ? 'urgent' : 
+                       entry.data.urgency === 'high' ? 'high' : 'normal'
+            });
+            console.log(`✅ Activity created for help request`);
+          } catch (activityError) {
+            console.error('Error creating activity:', activityError);
+            // Don't fail the request if activity creation fails
+          }
         } else {
           console.warn(`❌ Could not find or assign advisor for student ${entry.data.studentId}`);
         }
@@ -295,6 +325,35 @@ router.post('/', async (req, res) => {
         console.log(`✅ Student notification created with ID: ${studentNotification._id}`);
         console.log(`   Student: ${student.firstName} ${student.lastName} (${student.email})`);
         console.log(`   Advisor: ${advisor.firstName} ${advisor.lastName}`);
+
+        // Create activity for advisor contact
+        try {
+          await Activity.createActivity({
+            studentId: student.studentId,
+            student: student._id,
+            type: 'advisor_contact',
+            title: `Advisor Contact: ${entry.data.subject || 'Message from Advisor'}`,
+            description: entry.data.message || '',
+            performedBy: {
+              type: 'advisor',
+              advisorId: advisor._id,
+              advisorName: `${advisor.firstName} ${advisor.lastName}`
+            },
+            metadata: {
+              subject: entry.data.subject,
+              category: entry.data.category,
+              urgency: entry.data.urgency,
+              entryId: entry._id,
+              notificationId: studentNotification._id
+            },
+            priority: entry.data.urgency === 'urgent' ? 'urgent' : 
+                     entry.data.urgency === 'high' ? 'high' : 'normal'
+          });
+          console.log(`✅ Activity created for advisor contact`);
+        } catch (activityError) {
+          console.error('Error creating activity:', activityError);
+          // Don't fail the request if activity creation fails
+        }
       } catch (notifError) {
         console.error('❌ Error creating student notification:', notifError);
         console.error('   Error stack:', notifError.stack);

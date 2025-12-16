@@ -11,6 +11,7 @@
     <button [class.active]="activeTab === 'overview'" (click)="switchTab('overview')">Overview</button>
     <button [class.active]="activeTab === 'students'" (click)="switchTab('students')">Students</button>
     <button [class.active]="activeTab === 'requests'" (click)="switchTab('requests')">Requests</button>
+    <button [class.active]="activeTab === 'timeline'" (click)="switchTab('timeline')">Activity Timeline</button>
     <button [class.active]="activeTab === 'analytics'" (click)="switchTab('analytics')">Analytics</button>
   </nav>
 
@@ -28,6 +29,67 @@
     <div *ngIf="activeTab === 'requests'" class="tab-content">
       <h2>Help Requests</h2>
       <p>Help requests will be displayed here.</p>
+    </div>
+
+    <div *ngIf="activeTab === 'timeline'" class="tab-content">
+      <div class="timeline-header">
+        <h2>Activity Timeline</h2>
+        <div class="timeline-controls">
+          <select [(ngModel)]="activityFilter" (change)="onFilterChange(activityFilter)" class="filter-select">
+            <option value="all">All Activities</option>
+            <option value="help_request">Help Requests</option>
+            <option value="advisor_contact">Advisor Contacts</option>
+            <option value="notification_sent">Notifications</option>
+            <option value="risk_score_change">Risk Score Changes</option>
+            <option value="academic_update">Academic Updates</option>
+            <option value="financial_update">Financial Updates</option>
+          </select>
+          <button (click)="loadActivities()" class="refresh-btn" [disabled]="loadingActivities">
+            {{ loadingActivities ? 'Loading...' : 'Refresh' }}
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="loadingActivities" class="loading-state">
+        <p>Loading activities...</p>
+      </div>
+
+      <div *ngIf="!loadingActivities && activities.length === 0" class="empty-state">
+        <p>No activities found.</p>
+      </div>
+
+      <div *ngIf="!loadingActivities && activities.length > 0" class="timeline-container">
+        <div class="timeline">
+          <div *ngFor="let activity of activities" class="timeline-item">
+            <div class="timeline-marker" [style.border-color]="getPriorityColor(activity.priority)"></div>
+            <div class="timeline-content">
+              <div class="activity-header">
+                <h3 class="activity-title">{{ activity.title }}</h3>
+                <span class="activity-type">{{ getActivityTypeLabel(activity.type) }}</span>
+              </div>
+              <p class="activity-description" *ngIf="activity.description">{{ activity.description }}</p>
+              <div class="activity-meta">
+                <span class="activity-date">{{ formatActivityDate(activity.activityDate) }}</span>
+                <span class="activity-priority" [style.color]="getPriorityColor(activity.priority)">
+                  {{ activity.priority | titlecase }}
+                </span>
+                <span class="activity-performer" *ngIf="activity.performedBy.advisorName">
+                  by {{ activity.performedBy.advisorName }}
+                </span>
+                <span class="activity-performer" *ngIf="activity.performedBy.studentName">
+                  by {{ activity.performedBy.studentName }}
+                </span>
+              </div>
+              <div class="activity-metadata" *ngIf="activity.metadata && Object.keys(activity.metadata).length > 0">
+                <details>
+                  <summary>Details</summary>
+                  <pre>{{ activity.metadata | json }}</pre>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div *ngIf="activeTab === 'analytics'" class="tab-content">
