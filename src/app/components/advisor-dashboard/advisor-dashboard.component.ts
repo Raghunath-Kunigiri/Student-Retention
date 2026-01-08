@@ -39,6 +39,16 @@ export class AdvisorDashboardComponent implements OnInit, AfterViewInit {
   addingNote: boolean = false;
   selectedStudentForNote: any = null;
 
+  // Student search
+  searchQuery: string = '';
+  searchResults: any[] = [];
+  searching: boolean = false;
+  showSearchResults: boolean = false;
+  selectedStudent: any = null;
+  loadingStudentProfile: boolean = false;
+  studentProfile: any = null;
+  showStudentProfile: boolean = false;
+
   constructor(
     private authService: AuthService,
     private apiService: ApiService,
@@ -77,6 +87,10 @@ export class AdvisorDashboardComponent implements OnInit, AfterViewInit {
       this.loadActivities();
     } else if (tab === 'progress') {
       this.loadProgressData();
+    } else if (tab === 'students') {
+      this.searchQuery = '';
+      this.searchResults = [];
+      this.showSearchResults = false;
     }
   }
 
@@ -238,7 +252,7 @@ export class AdvisorDashboardComponent implements OnInit, AfterViewInit {
             },
             tooltip: {
               callbacks: {
-                label: (context) => `GPA: ${context.parsed.y.toFixed(2)}`
+                label: (context) => `GPA: ${context.parsed.y?.toFixed(2) || '0.00'}`
               }
             }
           }
@@ -368,6 +382,109 @@ export class AdvisorDashboardComponent implements OnInit, AfterViewInit {
       return notes[notes.length - 1]; // Get the most recent note
     }
     return '';
+  }
+
+  // Student search methods
+  onSearchInput(): void {
+    if (this.searchQuery.trim().length < 2) {
+      this.searchResults = [];
+      this.showSearchResults = false;
+      return;
+    }
+
+    this.searching = true;
+    this.showSearchResults = true;
+
+    // Debounce search
+    setTimeout(() => {
+      this.performSearch();
+    }, 300);
+  }
+
+  performSearch(): void {
+    if (!this.searchQuery.trim()) {
+      this.searchResults = [];
+      this.showSearchResults = false;
+      this.searching = false;
+      return;
+    }
+
+    this.apiService.getCsvStudents({ search: this.searchQuery, limit: 20 }).subscribe({
+      next: (students) => {
+        this.searchResults = students || [];
+        this.showSearchResults = this.searchResults.length > 0;
+        this.searching = false;
+      },
+      error: (error) => {
+        console.error('Error searching students:', error);
+        this.searchResults = [];
+        this.showSearchResults = false;
+        this.searching = false;
+      }
+    });
+  }
+
+  selectStudent(student: any): void {
+    this.selectedStudent = student;
+    this.searchQuery = `${student.firstName} ${student.lastName} (${student.student_id})`;
+    this.showSearchResults = false;
+    this.loadStudentProfile(student.student_id);
+  }
+
+  loadStudentProfile(studentId: number): void {
+    this.loadingStudentProfile = true;
+    this.showStudentProfile = true;
+
+    // Load comprehensive student data
+    this.apiService.getStudentData(studentId).subscribe({
+      next: (student) => {
+        this.studentProfile = student;
+        this.loadingStudentProfile = false;
+      },
+      error: (error) => {
+        console.error('Error loading student profile:', error);
+        // Fallback: use the search result data
+        this.studentProfile = this.selectedStudent;
+        this.loadingStudentProfile = false;
+      }
+    });
+  }
+
+  closeStudentProfile(): void {
+    this.showStudentProfile = false;
+    this.studentProfile = null;
+    this.selectedStudent = null;
+  }
+
+  viewStudentProgress(studentId: number): void {
+    this.closeStudentProfile();
+    this.activeTab = 'progress';
+    this.loadProgressData();
+    setTimeout(() => {
+      this.loadStudentProgress(studentId);
+    }, 500);
+  }
+
+  viewStudentTimeline(studentId: number): void {
+    this.closeStudentProfile();
+    this.activeTab = 'timeline';
+    this.selectedStudentId = studentId;
+    this.loadActivities();
+  }
+
+  getGpaColor(gpa: number): string {
+    if (!gpa || gpa === 0) return '#6b7280';
+    if (gpa >= 3.5) return '#10b981';
+    if (gpa >= 3.0) return '#3b82f6';
+    if (gpa >= 2.5) return '#f59e0b';
+    return '#ef4444';
+  }
+
+  getRiskLevelFromScore(score: number): string {
+    if (score >= 75) return 'critical';
+    if (score >= 50) return 'high';
+    if (score >= 25) return 'medium';
+    return 'low';
   }
 }
 

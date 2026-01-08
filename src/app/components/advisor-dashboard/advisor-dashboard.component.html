@@ -23,8 +23,162 @@
     </div>
 
     <div *ngIf="activeTab === 'students'" class="tab-content">
-      <h2>My Students</h2>
-      <p>Student list will be displayed here.</p>
+      <div class="students-header">
+        <h2>Student Search</h2>
+      </div>
+
+      <div class="search-container">
+        <div class="search-box-wrapper">
+          <input 
+            type="text" 
+            [(ngModel)]="searchQuery" 
+            (input)="onSearchInput()"
+            placeholder="Search by name, student ID, or email..."
+            class="search-input"
+            autocomplete="off">
+          <span class="search-icon">🔍</span>
+        </div>
+
+        <!-- Search Results Dropdown -->
+        <div *ngIf="showSearchResults" class="search-results">
+          <div *ngIf="searching" class="search-loading">
+            Searching...
+          </div>
+          <div *ngIf="!searching && searchResults.length === 0" class="no-results">
+            No students found
+          </div>
+          <div *ngIf="!searching && searchResults.length > 0" class="results-list">
+            <div 
+              *ngFor="let student of searchResults" 
+              class="result-item"
+              (click)="selectStudent(student)">
+              <div class="result-name">
+                <strong>{{ student.firstName }} {{ student.lastName }}</strong>
+                <span class="result-id">ID: {{ student.student_id }}</span>
+              </div>
+              <div class="result-details">
+                <span>{{ student.email }}</span>
+                <span *ngIf="student.major">{{ student.major }}</span>
+                <span *ngIf="student.academic?.gpa" class="gpa-badge">
+                  GPA: {{ student.academic.gpa.toFixed(2) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Profile View -->
+      <div *ngIf="showStudentProfile" class="student-profile">
+        <div class="profile-header">
+          <h3>Student Profile</h3>
+          <button class="close-profile-btn" (click)="closeStudentProfile()">&times;</button>
+        </div>
+
+        <div *ngIf="loadingStudentProfile" class="loading-state">
+          <p>Loading student profile...</p>
+        </div>
+
+        <div *ngIf="!loadingStudentProfile && studentProfile" class="profile-content">
+          <!-- Basic Information -->
+          <div class="profile-section">
+            <h4>Basic Information</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <label>Name:</label>
+                <span>{{ studentProfile.firstName }} {{ studentProfile.lastName }}</span>
+              </div>
+              <div class="info-item">
+                <label>Student ID:</label>
+                <span>{{ studentProfile.studentId || studentProfile.student_id }}</span>
+              </div>
+              <div class="info-item">
+                <label>Email:</label>
+                <span>{{ studentProfile.email }}</span>
+              </div>
+              <div class="info-item">
+                <label>Phone:</label>
+                <span>{{ studentProfile.phone || 'Not provided' }}</span>
+              </div>
+              <div class="info-item">
+                <label>Major:</label>
+                <span>{{ studentProfile.major || 'Not specified' }}</span>
+              </div>
+              <div class="info-item">
+                <label>Year:</label>
+                <span>{{ studentProfile.year || 'Not specified' }}</span>
+              </div>
+              <div class="info-item">
+                <label>Enrollment Status:</label>
+                <span>{{ studentProfile.enrollmentStatus || 'Not specified' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Information -->
+          <div class="profile-section" *ngIf="studentProfile.academic">
+            <h4>Academic Information</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <label>GPA:</label>
+                <span class="gpa-value" [style.color]="getGpaColor(studentProfile.academic.gpa)">
+                  {{ studentProfile.academic.gpa?.toFixed(2) || 'N/A' }}
+                </span>
+              </div>
+              <div class="info-item">
+                <label>Credits Earned:</label>
+                <span>{{ studentProfile.academic.creditsEarned || studentProfile.academic.credits_earned || 0 }}</span>
+              </div>
+              <div class="info-item">
+                <label>Absences:</label>
+                <span>{{ studentProfile.academic.attendanceAbsences || studentProfile.academic.attendance_absences || 0 }}</span>
+              </div>
+              <div class="info-item" *ngIf="studentProfile.riskScore !== undefined">
+                <label>Risk Score:</label>
+                <span class="risk-score" [style.color]="getRiskColor(getRiskLevelFromScore(studentProfile.riskScore))">
+                  {{ studentProfile.riskScore }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Financial Information -->
+          <div class="profile-section" *ngIf="studentProfile.financial">
+            <h4>Financial Information</h4>
+            <div class="info-grid">
+              <div class="info-item">
+                <label>Fee Balance:</label>
+                <span>${{ (studentProfile.financial.feeBalance || studentProfile.financial.fee_balance || 0).toFixed(2) }}</span>
+              </div>
+              <div class="info-item">
+                <label>Payment Status:</label>
+                <span>{{ studentProfile.financial.paymentStatus || 'Not specified' }}</span>
+              </div>
+              <div class="info-item" *ngIf="studentProfile.financial.daysOverdue || studentProfile.financial.days_overdue">
+                <label>Days Overdue:</label>
+                <span>{{ studentProfile.financial.daysOverdue || studentProfile.financial.days_overdue || 0 }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="profile-actions">
+            <button class="action-btn" (click)="viewStudentProgress(studentProfile.studentId || studentProfile.student_id)">
+              📊 View Progress
+            </button>
+            <button class="action-btn" (click)="viewStudentTimeline(studentProfile.studentId || studentProfile.student_id)">
+              📅 View Timeline
+            </button>
+            <button class="action-btn" (click)="openNoteModal({studentId: studentProfile.studentId || studentProfile.student_id})">
+              📝 Add Note
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="!showStudentProfile" class="search-prompt">
+        <p>Search for a student by name, ID, or email to view their profile.</p>
+      </div>
     </div>
 
     <div *ngIf="activeTab === 'requests'" class="tab-content">
