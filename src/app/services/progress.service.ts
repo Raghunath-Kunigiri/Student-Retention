@@ -194,4 +194,19 @@ export class ProgressService {
       day: 'numeric'
     });
   }
+
+  /**
+   * Add intervention note to student's progress
+   */
+  addInterventionNote(
+    studentId: number,
+    note: string,
+    advisorId?: number
+  ): Observable<{ success: boolean; progress: Progress }> {
+    return this.http.post<{ success: boolean; progress: Progress }>(`${this.apiUrl}/note`, {
+      studentId,
+      note,
+      advisorId
+    });
+  }
 }

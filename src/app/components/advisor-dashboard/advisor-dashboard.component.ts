@@ -32,6 +32,12 @@ export class AdvisorDashboardComponent implements OnInit, AfterViewInit {
   loadingStudentProgress: boolean = false;
   gpaChart: Chart | null = null;
   trendChart: Chart | null = null;
+  
+  // Intervention notes
+  showNoteModal: boolean = false;
+  interventionNote: string = '';
+  addingNote: boolean = false;
+  selectedStudentForNote: any = null;
 
   constructor(
     private authService: AuthService,
@@ -305,6 +311,63 @@ export class AdvisorDashboardComponent implements OnInit, AfterViewInit {
 
   formatDate(dateString: string): string {
     return this.progressService.formatDate(dateString);
+  }
+
+  // Intervention notes methods
+  openNoteModal(student: any): void {
+    this.selectedStudentForNote = student;
+    this.interventionNote = '';
+    this.showNoteModal = true;
+  }
+
+  closeNoteModal(): void {
+    this.showNoteModal = false;
+    this.selectedStudentForNote = null;
+    this.interventionNote = '';
+  }
+
+  addInterventionNote(): void {
+    if (!this.selectedStudentForNote || !this.interventionNote.trim()) {
+      return;
+    }
+
+    this.addingNote = true;
+    const studentId = this.selectedStudentForNote.student?.studentId || this.selectedStudentForNote.studentId;
+    
+    this.progressService.addInterventionNote(
+      studentId,
+      this.interventionNote.trim(),
+      this.currentUser?.advisorId
+    ).subscribe({
+      next: (response) => {
+        if (response.success) {
+          alert('Intervention note added successfully!');
+          this.closeNoteModal();
+          // Reload progress if this student is currently selected
+          if (this.selectedProgressStudentId === studentId) {
+            this.loadStudentProgress(studentId);
+          }
+          // Reload declining students list
+          this.loadDecliningStudents();
+        }
+        this.addingNote = false;
+      },
+      error: (error) => {
+        console.error('Error adding intervention note:', error);
+        alert('Error adding intervention note. Please try again.');
+        this.addingNote = false;
+      }
+    });
+  }
+
+  getLatestNote(progressHistory: Progress[]): string {
+    if (!progressHistory || progressHistory.length === 0) return '';
+    const latest = progressHistory[0];
+    if (latest.notes) {
+      const notes = latest.notes.split('\n');
+      return notes[notes.length - 1]; // Get the most recent note
+    }
+    return '';
   }
 }
 

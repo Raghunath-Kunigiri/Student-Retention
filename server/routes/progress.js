@@ -227,6 +227,91 @@ router.get('/declining', async (req, res) => {
 });
 
 /**
+ * Add intervention note to student's latest progress
+ * POST /api/progress/note
+ */
+router.post('/note', async (req, res) => {
+  try {
+    const { studentId, note, advisorId } = req.body;
+
+    if (!studentId || !note) {
+      return res.status(400).json({
+        success: false,
+        error: 'studentId and note are required'
+      });
+    }
+
+    const student = await Student.findOne({ studentId: parseInt(studentId) });
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        error: 'Student not found'
+      });
+    }
+
+    // Get the latest progress record
+    const latestProgress = await Progress.findOne({ studentId: parseInt(studentId) })
+      .sort({ recordedAt: -1 });
+
+    if (!latestProgress) {
+      return res.status(404).json({
+        success: false,
+        error: 'No progress record found for this student'
+      });
+    }
+
+    // Append note to existing notes or create new
+    const timestamp = new Date().toISOString();
+    const advisor = advisorId ? await Advisor.findById(advisorId) : null;
+    const advisorName = advisor ? `${advisor.firstName} ${advisor.lastName}` : 'System';
+    
+    const newNote = `[${timestamp}] ${advisorName}: ${note}`;
+    latestProgress.notes = latestProgress.notes 
+      ? `${latestProgress.notes}\n${newNote}`
+      : newNote;
+
+    await latestProgress.save();
+
+    // Create activity for the note
+    const Activity = require('../models/Activity');
+    try {
+      await Activity.createActivity({
+        studentId: parseInt(studentId),
+        student: student._id,
+        type: 'note_added',
+        title: 'Intervention Note Added',
+        description: note,
+        performedBy: {
+          type: 'advisor',
+          advisorId: advisorId ? advisor._id : null,
+          advisorName: advisorName
+        },
+        metadata: {
+          progressId: latestProgress._id,
+          note: note
+        },
+        priority: 'normal'
+      });
+    } catch (activityError) {
+      console.error('Error creating activity for note:', activityError);
+      // Don't fail the request if activity creation fails
+    }
+
+    res.json({
+      success: true,
+      progress: await Progress.findById(latestProgress._id)
+        .populate('student', 'studentId firstName lastName email major')
+    });
+  } catch (error) {
+    console.error('Error adding intervention note:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * Get progress statistics for advisor's students
  * GET /api/progress/advisor/:advisorId
  */

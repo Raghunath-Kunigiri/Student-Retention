@@ -149,13 +149,28 @@
               <div class="risk-badge" [style.background-color]="getRiskColor(student.riskLevel)">
                 {{ student.riskLevel | titlecase }}
               </div>
+              <button class="add-note-btn" (click)="openNoteModal(student); $event.stopPropagation()" 
+                      title="Add intervention note">
+                📝 Add Note
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Student Progress Charts -->
         <div *ngIf="selectedProgressStudentId && studentProgressHistory.length > 0" class="charts-section">
-          <h3>Progress History for Student {{ selectedProgressStudentId }}</h3>
+          <div class="section-header">
+            <h3>Progress History for Student {{ selectedProgressStudentId }}</h3>
+            <button class="add-note-btn" (click)="openNoteModal({studentId: selectedProgressStudentId})">
+              📝 Add Intervention Note
+            </button>
+          </div>
+          
+          <!-- Latest Note Display -->
+          <div *ngIf="getLatestNote(studentProgressHistory)" class="latest-note">
+            <strong>Latest Note:</strong>
+            <p>{{ getLatestNote(studentProgressHistory) }}</p>
+          </div>
           <div class="charts-grid">
             <div class="chart-container">
               <h4>GPA Trend Over Time</h4>
@@ -177,6 +192,7 @@
                   <th>Trend</th>
                   <th>Risk Level</th>
                   <th>Credits</th>
+                  <th>Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,6 +213,12 @@
                     </span>
                   </td>
                   <td>{{ progress.creditsEarned }}</td>
+                  <td class="notes-cell">
+                    <span *ngIf="progress.notes" class="has-notes" title="{{ progress.notes }}">
+                      📝 {{ progress.notes.split('\n').length }} note(s)
+                    </span>
+                    <span *ngIf="!progress.notes" class="no-notes">-</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -214,5 +236,40 @@
       <p>Analytics charts will be displayed here.</p>
     </div>
   </main>
+
+  <!-- Intervention Note Modal -->
+  <div *ngIf="showNoteModal" class="modal-overlay" (click)="closeNoteModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Add Intervention Note</h3>
+        <button class="close-btn" (click)="closeNoteModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div *ngIf="selectedStudentForNote?.student" class="student-info-modal">
+          <p><strong>Student:</strong> {{ selectedStudentForNote.student.firstName }} {{ selectedStudentForNote.student.lastName }}</p>
+          <p><strong>Student ID:</strong> {{ selectedStudentForNote.student.studentId }}</p>
+          <p *ngIf="selectedStudentForNote.currentGPA"><strong>Current GPA:</strong> {{ selectedStudentForNote.currentGPA.toFixed(2) }}</p>
+        </div>
+        <div *ngIf="selectedStudentForNote?.studentId && !selectedStudentForNote?.student" class="student-info-modal">
+          <p><strong>Student ID:</strong> {{ selectedStudentForNote.studentId }}</p>
+        </div>
+        <div class="form-group">
+          <label for="intervention-note">Intervention Note:</label>
+          <textarea 
+            id="intervention-note"
+            [(ngModel)]="interventionNote" 
+            placeholder="Enter your intervention note here..."
+            rows="6"
+            class="note-textarea"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="closeNoteModal()" [disabled]="addingNote">Cancel</button>
+        <button class="btn-save" (click)="addInterventionNote()" [disabled]="addingNote || !interventionNote.trim()">
+          {{ addingNote ? 'Saving...' : 'Save Note' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
